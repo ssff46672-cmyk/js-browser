@@ -1,8 +1,9 @@
 {
   "name": "JS Browser",
   "short_name": "JS Browser",
-  "description": "A simple online browser for exploring and testing web pages with JavaScript.",
-  "start_url": "./",
+  "description": "JS Browser is a simple online browser for exploring and testing web pages with JavaScript.",
+  "start_url": "/js-browser/",
+  "scope": "/js-browser/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
