@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>JS Browser</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+
+    <h1>JS Browser</h1>
+
+    <div class="toolbar">
+
+        <button id="run">▶ Run</button>
+
+        <button id="clear">Clear</button>
+
+    </div>
+
+</header>
+
+<main>
+
+    <div class="editors">
+
+        <section>
+            <h2>HTML</h2>
+
+            <textarea id="htmlCode">
+<h1>Hello World</h1>
+<p>Welcome to JS Browser</p>
+            </textarea>
+        </section>
+
+        <section>
+            <h2>CSS</h2>
+
+            <textarea id="cssCode">
+body {
+    font-family: Arial;
+    text-align: center;
+}
+
+h1 {
+    color: blue;
+}
+            </textarea>
+        </section>
+
+        <section>
+            <h2>JavaScript</h2>
+
+            <textarea id="jsCode">
+let name = "Youssef";
+
+console.log("Hello " + name);
+            </textarea>
+        </section>
+
+    </div>
+
+    <section class="preview">
+
+        <h2>Preview</h2>
+
+        <iframe id="preview"></iframe>
+
+    </section>
+
+    <section class="console-section">
+
+        <h2>Console</h2>
+
+        <div id="console"></div>
+
+    </section>
+
+</main>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
