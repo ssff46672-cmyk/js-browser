@@ -1,44 +1,49 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>JS Browser</title>
+```
+<title>JS Browser - Online HTML, CSS & JavaScript Editor</title>
 
-    <link rel="stylesheet" href="style.Css">
+<meta name="description"
+    content="JS Browser is a free online HTML, CSS and JavaScript editor. Write code, run it instantly and see the result in your browser.">
 
-<link rel="manifest"href="manifest.json" >
+<meta name="robots" content="index, follow">
+<meta name="author" content="JS Browser">
 
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>JS Browser - Online JavaScript Browser</title>
-
-    <meta name="description"
-          content="JS Browser is a simple online browser for exploring and testing web pages with JavaScript. Fast, simple and easy to use.">
-
-    <meta name="robots" content="index, follow">
-
-    <meta name="author" content="JS Browser">
-
-    <link rel="stylesheet" href="style.Css">
+<link rel="stylesheet" href="style.Css">
+<link rel="manifest" href="manifest.json">
+```
 
 </head>
 
 <body>
 
+```
 <header>
 
-    <h1>JS Browser</h1>
+    <div class="header-content">
 
-    <div class="toolbar">
+        <div>
+            <h1>JS Browser</h1>
+            <p>Online HTML, CSS & JavaScript Editor</p>
+        </div>
 
-        <button id="run">▶ Run</button>
+        <div class="toolbar">
 
-        <button id="clear">Clear</button>
+            <button id="run" type="button">
+                ▶ Run
+            </button>
+
+            <button id="clear" type="button">
+                Clear
+            </button>
+
+        </div>
 
     </div>
 
@@ -46,51 +51,65 @@
 
 <main>
 
-    <div class="editors">
+    <section class="editors">
 
-        <section>
+        <div class="editor">
+
             <h2>HTML</h2>
 
-            <textarea id="htmlCode">
-<h1>Hello World</h1>
-<p>Welcome to JS Browser</p>
-            </textarea>
-        </section>
+            <textarea id="htmlCode" spellcheck="false"><h1>Hello World</h1>
+```
 
-        <section>
+<p>Welcome to JS Browser</p></textarea>
+
+```
+        </div>
+
+        <div class="editor">
+
             <h2>CSS</h2>
 
-            <textarea id="cssCode">
-body {
-    font-family: Arial;
-    text-align: center;
+            <textarea id="cssCode" spellcheck="false">body {
+font-family: Arial;
+text-align: center;
+```
+
 }
 
 h1 {
-    color: blue;
-}
-            </textarea>
-        </section>
+color: blue;
+}</textarea>
 
-        <section>
+```
+        </div>
+
+        <div class="editor">
+
             <h2>JavaScript</h2>
 
-            <textarea id="jsCode">
-let name = "Youssef";
+            <textarea id="jsCode" spellcheck="false">let name = "Youssef";
+```
 
-console.log("Hello " + name);
-            </textarea>
-        </section>
+console.log("Hello " + name);</textarea>
 
-    </div>
+```
+        </div>
+
+    </section>
+
 
     <section class="preview">
 
         <h2>Preview</h2>
 
-        <iframe id="preview"></iframe>
+        <iframe
+            id="preview"
+            title="JS Browser Preview"
+            sandbox="allow-scripts">
+        </iframe>
 
     </section>
+
 
     <section class="console-section">
 
@@ -102,12 +121,25 @@ console.log("Hello " + name);
 
 </main>
 
+
+<footer>
+
+    <p>
+        © 2026 JS Browser — Free online HTML, CSS & JavaScript editor.
+    </p>
+
+</footer>
+
+
 <script src="script.js" defer></script>
-    <script>
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js");
-}
+
+<script>
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("sw.js")
+            .catch(error => console.log("Service Worker error:", error));
+    }
 </script>
+```
 
 </body>
 
