@@ -1,3 +1,6 @@
+
+
+```javascript
 const htmlCode = document.querySelector("#htmlCode");
 const cssCode = document.querySelector("#cssCode");
 const jsCode = document.querySelector("#jsCode");
@@ -8,25 +11,17 @@ const consoleBox = document.querySelector("#console");
 const run = document.querySelector("#run");
 const clear = document.querySelector("#clear");
 
-/* =========================
-Run Code
-========================= */
 
 function runCode() {
 
-```
-consoleBox.textContent = "";
+    consoleBox.textContent = "";
 
-const html = htmlCode.value;
-const css = cssCode.value;
-const js = jsCode.value;
+    const html = htmlCode.value;
+    const css = cssCode.value;
+    const js = jsCode.value;
 
-
-const page = `
-```
-
+    const page = `
 <!DOCTYPE html>
-
 <html>
 
 <head>
@@ -57,13 +52,19 @@ console.log = function(...messages) {
 
         message: messages
             .map(message => {
+
                 try {
+
                     return typeof message === "object"
                         ? JSON.stringify(message)
                         : String(message);
+
                 } catch {
+
                     return String(message);
+
                 }
+
             })
             .join(" ")
 
@@ -82,7 +83,9 @@ console.error = function(...messages) {
 
         type: "error",
 
-        message: messages.join(" ")
+        message: messages
+            .map(message => String(message))
+            .join(" ")
 
     }, "*");
 
@@ -129,28 +132,14 @@ ${js}
 
     preview.srcdoc = page;
 
-
-    /* Save code */
-
     localStorage.setItem("jsbrowser-html", html);
-
     localStorage.setItem("jsbrowser-css", css);
-
     localStorage.setItem("jsbrowser-js", js);
-
 }
 
 
-/* =========================
-   Run Button
-========================= */
-
 run.addEventListener("click", runCode);
 
-
-/* =========================
-   Console Messages
-========================= */
 
 window.addEventListener("message", function(event) {
 
@@ -158,14 +147,12 @@ window.addEventListener("message", function(event) {
         return;
     }
 
-
     if (event.data.type === "console") {
 
         consoleBox.textContent +=
             event.data.message + "\n";
 
     }
-
 
     if (event.data.type === "error") {
 
@@ -178,10 +165,6 @@ window.addEventListener("message", function(event) {
 
 });
 
-
-/* =========================
-   Clear
-========================= */
 
 clear.addEventListener("click", function() {
 
@@ -199,10 +182,6 @@ clear.addEventListener("click", function() {
 
 });
 
-
-/* =========================
-   Load Saved Code
-========================= */
 
 const savedHTML =
     localStorage.getItem("jsbrowser-html");
@@ -227,10 +206,6 @@ if (savedJS !== null) {
 }
 
 
-/* =========================
-   Ctrl + Enter
-========================= */
-
 document.addEventListener("keydown", function(event) {
 
     if (event.ctrlKey && event.key === "Enter") {
@@ -243,9 +218,5 @@ document.addEventListener("keydown", function(event) {
 
 });
 
-
-/* =========================
-   Run When Page Opens
-========================= */
 
 runCode();
