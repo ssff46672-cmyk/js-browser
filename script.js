@@ -1,6 +1,3 @@
-
-
-```javascript
 const htmlCode = document.querySelector("#htmlCode");
 const cssCode = document.querySelector("#cssCode");
 const jsCode = document.querySelector("#jsCode");
@@ -10,7 +7,6 @@ const consoleBox = document.querySelector("#console");
 
 const run = document.querySelector("#run");
 const clear = document.querySelector("#clear");
-
 
 function runCode() {
 
@@ -74,7 +70,6 @@ console.log = function(...messages) {
 
 };
 
-
 const oldError = console.error;
 
 console.error = function(...messages) {
@@ -93,7 +88,6 @@ console.error = function(...messages) {
 
 };
 
-
 window.onerror = function(message) {
 
     window.parent.postMessage({
@@ -105,7 +99,6 @@ window.onerror = function(message) {
     }, "*");
 
 };
-
 
 try {
 
@@ -137,9 +130,7 @@ ${js}
     localStorage.setItem("jsbrowser-js", js);
 }
 
-
 run.addEventListener("click", runCode);
-
 
 window.addEventListener("message", function(event) {
 
@@ -165,7 +156,6 @@ window.addEventListener("message", function(event) {
 
 });
 
-
 clear.addEventListener("click", function() {
 
     htmlCode.value = "";
@@ -182,7 +172,6 @@ clear.addEventListener("click", function() {
 
 });
 
-
 const savedHTML =
     localStorage.getItem("jsbrowser-html");
 
@@ -191,7 +180,6 @@ const savedCSS =
 
 const savedJS =
     localStorage.getItem("jsbrowser-js");
-
 
 if (savedHTML !== null) {
     htmlCode.value = savedHTML;
@@ -205,7 +193,6 @@ if (savedJS !== null) {
     jsCode.value = savedJS;
 }
 
-
 document.addEventListener("keydown", function(event) {
 
     if (event.ctrlKey && event.key === "Enter") {
@@ -217,6 +204,5 @@ document.addEventListener("keydown", function(event) {
     }
 
 });
-
 
 runCode();
