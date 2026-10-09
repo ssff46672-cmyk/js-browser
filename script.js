@@ -1,10 +1,5 @@
-const editorElement = document.getElementById("editor");
-const preview = document.getElementById("preview");
-const fileList = document.getElementById("fileList");
-const currentTab = document.getElementById("currentTab");
-const saveStatus = document.getElementById("saveStatus");
-const languageLabel = document.getElementById("languageLabel");
-const consoleOutput = document.getElementById("consoleOutput");
+
+"use strict";
 
 const STORAGE_KEY = "jsBrowserWorkspaceV2";
 
@@ -29,17 +24,14 @@ const defaultFiles = {
     padding: 40px;
     background: #f0f4f8;
 }
-
 h1 {
     color: #007acc;
     font-size: 36px;
 }
-
 p {
     color: #333;
     font-size: 18px;
 }
-
 button {
     padding: 12px 22px;
     color: white;
@@ -48,7 +40,6 @@ button {
     border-radius: 6px;
     cursor: pointer;
 }
-
 button:hover {
     background: #005a9e;
 }`,
@@ -57,12 +48,22 @@ button:hover {
     alert("Hello from JS Browser!");
 }
 
-console.log("JavaScript is working!");
-`
+console.log("JavaScript is working!");`
 };
 
-let files = loadWorkspace();
+const $ = id => document.getElementById(id);
+
+const editorElement = $("editor");
+const preview = $("preview");
+const fileList = $("fileList");
+const currentTab = $("currentTab");
+const saveStatus = $("saveStatus");
+const languageLabel = $("languageLabel");
+const consoleOutput = $("consoleOutput");
+
+let editor = null;
 let activeFile = "index.html";
+let files = loadWorkspace();
 
 function loadWorkspace() {
     try {
@@ -71,42 +72,60 @@ function loadWorkspace() {
         if (saved) {
             const data = JSON.parse(saved);
 
-            if (
-                data &&
-                data.files &&
-                typeof data.files === "object" &&
-                Object.keys(data.files).some(
-                    name => name.endsWith(".html")
-                )
-            ) {
-                const validFiles = {};
+            if (data && data.files && typeof data.files === "object") {
+                const result = {};
 
                 for (const [name, content] of Object.entries(data.files)) {
                     if (
-                        typeof content === "string" &&
                         /\.(html|css|js)$/i.test(name) &&
                         !name.includes("/") &&
-                        !name.includes("\\")
+                        !name.includes("\\") &&
+                        typeof content === "string"
                     ) {
-                        validFiles[name] = content;
+                        result[name] = content;
                     }
                 }
 
-                if (Object.keys(validFiles).length > 0) {
-                    return validFiles;
+                if (Object.keys(result).some(name => /\.html$/i.test(name))) {
+                    return result;
                 }
             }
         }
     } catch (error) {
-        console.warn("Could not load workspace:", error);
+        console.error("Workspace loading error:", error);
     }
 
     return { ...defaultFiles };
 }
 
+function getEditorValue() {
+    return editor ? editor.getValue() : editorElement.value;
+}
+
+function setEditorValue(value) {
+    if (editor) {
+        editor.setValue(value);
+    } else {
+        editorElement.value = value;
+    }
+}
+
+function setEditorMode(filename) {
+    const ext = filename.split(".").pop().toLowerCase();
+    const mode = ext === "html" ? "htmlmixed"
+        : ext === "css" ? "css"
+        : "javascript";
+
+    if (editor) editor.setOption("mode", mode);
+}
+
+function refreshEditor() {
+    if (editor) editor.refresh();
+}
+
 function saveCurrentEditor() {
-    if (activeFile && editor) {
-        files[activeFile] = editor.getValue();
+    if (activeFile && editorElement) {
+        files[activeFile] = getEditorValue();
     }
 }
 
@@ -114,30 +133,19 @@ function saveWorkspace() {
     saveCurrentEditor();
 
     try {
-        localStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify({ files })
-        );
-
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ files }));
         saveStatus.textContent = "Saved ✓";
     } catch (error) {
         saveStatus.textContent = "Save failed";
-        console.error("Could not save:", error);
+        console.error("Save error:", error);
     }
 }
 
 function getMode(filename) {
-    const extension = filename.split(".").pop().toLowerCase();
-
-    if (extension === "html") {
-        return "htmlmixed";
-    }
-
-    if (extension === "css") {
-        return "css";
-    }
-
-    return "javascript";
+    const ext = filename.split(".").pop().toLowerCase();
+    return ext === "html" ? "htmlmixed"
+        : ext === "css" ? "css"
+        : "javascript";
 }
 
 function renderFiles() {
@@ -145,67 +153,50 @@ function renderFiles() {
 
     Object.keys(files).forEach(filename => {
         const button = document.createElement("button");
+        const ext = filename.split(".").pop().toLowerCase();
+        const icon = ext === "html" ? "🌐"
+            : ext === "css" ? "🎨"
+            : ext === "js" ? "🟨" : "📄";
 
-        button.className =
-            "file" + (filename === activeFile ? " active" : "");
-
-        const extension = filename.split(".").pop().toLowerCase();
-
-        const icon = {
-            html: "🌐",
-            css: "🎨",
-            js: "🟨"
-        }[extension] || "📄";
-
+        button.className = "file" +
+            (filename === activeFile ? " active" : "");
         button.textContent = icon + " " + filename;
         button.title = filename;
-
-        button.addEventListener("click", () => {
-            openFile(filename);
-        });
+        button.addEventListener("click", () => openFile(filename));
 
         fileList.appendChild(button);
     });
 }
 
 function openFile(filename) {
-    if (!Object.prototype.hasOwnProperty.call(files, filename)) {
-        return;
-    }
+    if (!Object.prototype.hasOwnProperty.call(files, filename)) return;
 
-    saveCurrentEditor();
+    if (editor || editorElement) saveCurrentEditor();
 
     activeFile = filename;
-    editor.setValue(files[filename]);
-    editor.setOption("mode", getMode(filename));
+    setEditorValue(files[filename]);
+    setEditorMode(filename);
 
     currentTab.textContent = filename;
-    languageLabel.textContent = filename.split(".").pop().toUpperCase();
-
+    languageLabel.textContent =
+        filename.split(".").pop().toUpperCase();
     saveStatus.textContent = "Ready";
 
     renderFiles();
-    editor.refresh();
+    refreshEditor();
 }
 
 function addConsoleMessage(level, args) {
     const hint = consoleOutput.querySelector(".console-hint");
-
-    if (hint) {
-        hint.remove();
-    }
+    if (hint) hint.remove();
 
     const line = document.createElement("p");
     line.className = "console-line " + level;
-
     line.textContent = args.map(value => {
-        if (typeof value === "string") {
-            return value;
-        }
-
+        if (typeof value === "string") return value;
         try {
             return JSON.stringify(value);
-        } catch (error) {
+        } catch {
             return String(value);
         }
     }).join(" ");
@@ -219,41 +210,65 @@ function clearConsole() {
 }
 
 function findMainFile() {
-    if (files["index.html"]) {
-        return "index.html";
-    }
-
-    return Object.keys(files).find(
-        name => name.toLowerCase().endsWith(".html")
-    );
+    if (files["index.html"]) return "index.html";
+    return Object.keys(files).find(name => /\.html$/i.test(name));
 }
 
 function injectIntoHTML(html, css, js) {
-    const styleTag = "<style>\n" + css + "\n</style>";
+    // Remove local CSS links because their contents are inserted below.
+    html = html.replace(/<link\b[^>]*>/gi, tag => {
+        const match = tag.match(/\bhref\s*=\s*(["'])(.*?)\1/i);
+        if (!match) return tag;
 
-    // Prevent user code from prematurely closing the script element.
+        const href = match[2].split(/[?#]/)[0];
+        const isExternal = /^(https?:)?\/\//i.test(href) ||
+            /^(data:|blob:)/i.test(href);
+
+        if (isExternal) return tag;
+
+        const filename = href.split("/").pop();
+        if (/\.css$/i.test(filename) && files[filename] !== undefined) {
+            return "";
+        }
+
+        return tag;
+    });
+
+    // Remove local script.js references to avoid a second 404 request.
+    html = html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, tag => {
+        const match = tag.match(/\bsrc\s*=\s*(["'])(.*?)\1/i);
+        if (!match) return tag;
+
+        const src = match[2].split(/[?#]/)[0];
+        const isExternal = /^(https?:)?\/\//i.test(src) ||
+            /^(data:|blob:)/i.test(src);
+
+        if (isExternal) return tag;
+
+        const filename = src.split("/").pop();
+        if (/\.js$/i.test(filename) && files[filename] !== undefined) {
+            return "";
+        }
+
+        return tag;
+    });
+
+    const styleTag = "<style>\n" + css + "\n</style>";
     const safeJS = js.replace(/<\/script/gi, "<\\/script");
 
     const runtime = `
 (function () {
     function printable(value) {
         if (typeof value === "string") return value;
-
-        try {
-            return JSON.stringify(value);
-        } catch (error) {
-            return String(value);
-        }
+        try { return JSON.stringify(value); }
+        catch (error) { return String(value); }
     }
 
     ["log", "info", "warn", "error"].forEach(function (level) {
         const original = console[level].bind(console);
-
         console[level] = function () {
             const args = Array.from(arguments);
-
             original.apply(console, args);
-
             window.parent.postMessage({
                 source: "js-browser-console",
                 level: level,
@@ -274,33 +289,28 @@ function injectIntoHTML(html, css, js) {
         window.parent.postMessage({
             source: "js-browser-console",
             level: "error",
-            args: ["Unhandled promise rejection: " + printable(event.reason)]
+            args: ["Promise error: " + printable(event.reason)]
         }, "*");
     });
 })();
 `;
 
-    // The HTML parser must see the closing script tag, so build it in pieces.
     const scriptTag =
-        "<scr" + "ipt>\n" +
-        runtime + "\n" +
-        safeJS + "\n" +
-        "</scr" + "ipt>";
+        "<scr" + "ipt>\n" + runtime + "\n" +
+        safeJS + "\n" + "</scr" + "ipt>";
 
     if (/<\/head\s*>/i.test(html)) {
-        html = html.replace(
-            /<\/head\s*>/i,
-            styleTag + "\n</head>"
+        html = html.replace(/<\/head\s*>/i, styleTag + "\n</head>");
+    } else if (/<html\b[^>]*>/i.test(html)) {
+        html = html.replace(/<html\b[^>]*>/i, match =>
+            match + "\n<head>" + styleTag + "</head>"
         );
     } else {
         html = "<head>" + styleTag + "</head>\n" + html;
     }
 
     if (/<\/body\s*>/i.test(html)) {
-        html = html.replace(
-            /<\/body\s*>/i,
-            scriptTag + "\n</body>"
-        );
+        html = html.replace(/<\/body\s*>/i, scriptTag + "\n</body>");
     } else {
         html += "\n" + scriptTag;
     }
@@ -315,31 +325,25 @@ function runCode() {
     const htmlFilename = findMainFile();
 
     if (!htmlFilename) {
-        addConsoleMessage(
-            "error",
-            ["Create an HTML file before running the project."]
-        );
+        addConsoleMessage("error", [
+            "Create an HTML file before running the project."
+        ]);
         return;
     }
 
     const html = files[htmlFilename];
-
-    // Use the standard filenames, with sensible fallbacks.
     const css = files["style.css"] || "";
     const js = files["script.js"] || "";
 
+    // CSS and JS are inserted directly from the editor workspace.
     preview.srcdoc = injectIntoHTML(html, css, js);
 
     document.querySelectorAll(".panel-tab").forEach(button => {
-        button.classList.toggle(
-            "active",
-            button.dataset.panel === "preview"
-        );
+        button.classList.toggle("active", button.dataset.panel === "preview");
     });
 
-    document.getElementById("previewPanel").classList.remove("hidden");
-    document.getElementById("consolePanel").classList.add("hidden");
-
+    $("previewPanel").classList.remove("hidden");
+    $("consolePanel").classList.add("hidden");
     saveStatus.textContent = "Preview updated";
 }
 
@@ -348,9 +352,7 @@ function createFile() {
         "Enter a filename (example: about.html, app.css, test.js):"
     );
 
-    if (filename === null) {
-        return;
-    }
+    if (filename === null) return;
 
     const cleanName = filename.trim();
 
@@ -365,7 +367,6 @@ function createFile() {
     }
 
     files[cleanName] = "";
-
     saveWorkspace();
     openFile(cleanName);
 }
@@ -376,14 +377,12 @@ function deleteFile() {
         return;
     }
 
-    if (!confirm("Delete " + activeFile + "?")) {
-        return;
-    }
+    if (!confirm("Delete " + activeFile + "?")) return;
 
     delete files[activeFile];
 
     const nextFile = Object.keys(files)[0];
-
+    activeFile = nextFile;
     saveWorkspace();
     openFile(nextFile);
 }
@@ -392,128 +391,92 @@ async function exportProject() {
     saveCurrentEditor();
 
     if (typeof JSZip === "undefined") {
-        alert(
-            "ZIP library could not load. Check your internet connection and try again."
-        );
+        alert("ZIP library could not load. Check your internet connection.");
         return;
     }
 
-    const zip = new JSZip();
-
-    Object.entries(files).forEach(([filename, content]) => {
-        zip.file(filename, content);
-    });
-
     try {
-        saveStatus.textContent = "Preparing ZIP...";
+        const zip = new JSZip();
 
-        const blob = await zip.generateAsync({
-            type: "blob"
+        Object.entries(files).forEach(([name, content]) => {
+            zip.file(name, content);
         });
 
+        saveStatus.textContent = "Preparing ZIP...";
+
+        const blob = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
 
         link.href = url;
         link.download = "js-browser-project.zip";
+        document.body.appendChild(link);
         link.click();
+        link.remove();
 
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
         saveStatus.textContent = "ZIP exported ✓";
     } catch (error) {
         saveStatus.textContent = "Export failed";
-        alert("Could not export the project.");
         console.error(error);
+        alert("Could not export the project.");
     }
 }
 
-if (typeof CodeMirror === "undefined") {
-    saveStatus.textContent = "Editor library unavailable";
-    editorElement.value = defaultFiles["index.html"];
+// Use CodeMirror when available; otherwise keep a usable text editor.
+if (typeof CodeMirror !== "undefined") {
+    editor = CodeMirror.fromTextArea(editorElement, {
+        mode: "htmlmixed",
+        theme: "dracula",
+        lineNumbers: true,
+        lineWrapping: false,
+        indentUnit: 4,
+        tabSize: 4,
+        autofocus: true
+    });
 
-    throw new Error(
-        "CodeMirror failed to load. Check your internet connection."
-    );
+    editor.on("change", () => {
+        saveCurrentEditor();
+        saveStatus.textContent = "Unsaved changes";
+    });
+} else {
+    editorElement.style.width = "100%";
+    editorElement.style.height = "100%";
+    editorElement.style.minHeight = "300px";
+    editorElement.style.boxSizing = "border-box";
+    editorElement.style.background = "#282a36";
+    editorElement.style.color = "#f8f8f2";
+    editorElement.style.fontFamily = "monospace";
+    editorElement.style.fontSize = "14px";
+
+    editorElement.addEventListener("input", () => {
+        saveCurrentEditor();
+        saveStatus.textContent = "Unsaved changes";
+    });
 }
-
-const editor = CodeMirror.fromTextArea(editorElement, {
-    mode: "htmlmixed",
-    theme: "dracula",
-    lineNumbers: true,
-    lineWrapping: false,
-    indentUnit: 4,
-    tabSize: 4,
-    indentWithTabs: false,
-    autofocus: true
-});
-
-editor.on("change", () => {
-    saveCurrentEditor();
-    saveStatus.textContent = "Unsaved changes";
-});
 
 window.addEventListener("message", event => {
-    if (event.source !== preview.contentWindow) {
-        return;
-    }
+    if (event.source !== preview.contentWindow) return;
 
     const data = event.data;
-
-    if (
-        !data ||
-        data.source !== "js-browser-console" ||
-        !Array.isArray(data.args)
-    ) {
-        return;
-    }
+    if (!data || data.source !== "js-browser-console" ||
+        !Array.isArray(data.args)) return;
 
     addConsoleMessage(
         ["log", "info", "warn", "error"].includes(data.level)
-            ? data.level
-            : "log",
+            ? data.level : "log",
         data.args
     );
 });
 
-document.getElementById("runBtn").addEventListener(
-    "click",
-    runCode
-);
-
-document.getElementById("refreshBtn").addEventListener(
-    "click",
-    runCode
-);
-
-document.getElementById("saveBtn").addEventListener(
-    "click",
-    saveWorkspace
-);
-
-document.getElementById("newFileBtn").addEventListener(
-    "click",
-    createFile
-);
-
-document.getElementById("sidebarNewBtn").addEventListener(
-    "click",
-    createFile
-);
-
-document.getElementById("deleteFileBtn").addEventListener(
-    "click",
-    deleteFile
-);
-
-document.getElementById("exportBtn").addEventListener(
-    "click",
-    exportProject
-);
-
-document.getElementById("clearConsoleBtn").addEventListener(
-    "click",
-    clearConsole
-);
+$("runBtn").addEventListener("click", runCode);
+$("refreshBtn").addEventListener("click", runCode);
+$("saveBtn").addEventListener("click", saveWorkspace);
+$("newFileBtn").addEventListener("click", createFile);
+$("sidebarNewBtn").addEventListener("click", createFile);
+$("deleteFileBtn").addEventListener("click", deleteFile);
+$("exportBtn").addEventListener("click", exportProject);
+$("clearConsoleBtn").addEventListener("click", clearConsole);
 
 document.querySelectorAll(".panel-tab").forEach(button => {
     button.addEventListener("click", () => {
@@ -523,26 +486,31 @@ document.querySelectorAll(".panel-tab").forEach(button => {
             tab.classList.toggle("active", tab === button);
         });
 
-        document.getElementById("previewPanel").classList.toggle(
-            "hidden",
-            panel !== "preview"
-        );
+        $("previewPanel").classList.toggle("hidden", panel !== "preview");
+        $("consolePanel").classList.toggle("hidden", panel !== "console");
 
-        document.getElementById("consolePanel").classList.toggle(
-            "hidden",
-            panel !== "console"
-        );
+        if (panel === "preview") runCode();
     });
 });
 
-editor.addKeyMap({
-    "Ctrl-S": saveWorkspace,
-    "Cmd-S": saveWorkspace
-});
+if (editor) {
+    editor.addKeyMap({
+        "Ctrl-S": saveWorkspace,
+        "Cmd-S": saveWorkspace
+    });
+} else {
+    editorElement.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) &&
+            event.key.toLowerCase() === "s") {
+            event.preventDefault();
+            saveWorkspace();
+        }
+    });
+}
 
 renderFiles();
 openFile(
-    files["index.html"]
+    files["index.html"] !== undefined
         ? "index.html"
         : Object.keys(files)[0]
 );
