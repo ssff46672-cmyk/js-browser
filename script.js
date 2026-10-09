@@ -334,7 +334,7 @@ function runCode() {
     }
 
     const html = files[htmlFilename];
-    const css = files["style.Css"] || "";
+    const css = files["style.css"] || files["style.Css"] || "";
     const js = files["script.js"] || "";
 
     // CSS and JS are inserted directly from the editor workspace.
