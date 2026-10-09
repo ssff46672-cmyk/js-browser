@@ -319,6 +319,8 @@ function injectIntoHTML(html, css, js) {
 }
 
 function runCode() {
+    console.log("RUN BUTTON CLICKED");
+
     saveCurrentEditor();
     clearConsole();
 
