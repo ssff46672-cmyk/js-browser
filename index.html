@@ -1,148 +1,71 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-    <!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-DZRNCGZ4RX"></script>
-
-<script>
-    window.dataLayer = window.dataLayer || [];
-
-    function gtag() {
-        dataLayer.push(arguments);
-    }
-
-    gtag("js", new Date());
-
-    gtag("config", "G-DZRNCGZ4RX");
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>JS Browser - Online HTML, CSS & JavaScript Editor</title>
-
-<meta name="description"
-    content="JS Browser is a free online HTML, CSS and JavaScript editor. Write code, run it instantly and see the result in your browser.">
-
-<meta name="robots" content="index, follow">
-<meta name="author" content="JS Browser">
-
-<link rel="stylesheet" href="style.Css">
-<link rel="manifest" href="manifest.json">
-
+    <title>JS Browser - Code Editor</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-<header>
-
-    <div class="header-content">
-
-        <div>
-            <h1>JS Browser</h1>
-            <p>Online HTML, CSS & JavaScript Editor</p>
+    <header class="topbar">
+        <div class="brand">JS <span>Browser</span></div>
+        <div class="top-actions">
+            <button id="runBtn" class="run-btn">▶ Run</button>
+            <button id="saveBtn">Save</button>
         </div>
+    </header>
 
-        <div class="toolbar">
+    <div class="workspace">
+        <aside class="sidebar">
+            <h3>EXPLORER</h3>
+            <p class="folder">📁 MY PROJECT</p>
 
-            <button id="run" type="button">
-                ▶ Run
-            </button>
+            <button class="file active" data-file="html">🌐 index.html</button>
+            <button class="file" data-file="css">🎨 style.css</button>
+            <button class="file" data-file="js">🟨 script.js</button>
 
-            <button id="clear" type="button">
-                Clear
-            </button>
+            <div class="sidebar-info">
+                <p>JS Browser Editor</p>
+                <small>Write code. Run. Learn.</small>
+            </div>
+        </aside>
 
-        </div>
+        <main class="main-area">
+            <div class="tab-bar">
+                <div id="currentTab">🌐 index.html</div>
+                <span id="saveStatus">Ready</span>
+            </div>
 
+            <div class="editor-container">
+                <div id="lineNumbers">1</div>
+                <textarea
+                    id="editor"
+                    spellcheck="false"
+                    aria-label="Code editor"
+                    autocomplete="off"
+                    autocapitalize="off"
+                ></textarea>
+            </div>
+
+            <section class="preview-section">
+                <div class="preview-header">
+                    <span>LIVE PREVIEW</span>
+                    <button id="refreshBtn">↻ Refresh</button>
+                </div>
+                <iframe
+                    id="preview"
+                    title="Live preview"
+                    sandbox="allow-scripts"
+                ></iframe>
+            </section>
+
+            <footer class="statusbar">
+                <span id="languageLabel">HTML</span>
+                <span>JS Browser</span>
+            </footer>
+        </main>
     </div>
 
-</header>
-
-<main>
-
-    <section class="editors">
-
-        <div class="editor">
-
-            <h2>HTML</h2>
-
-            <textarea id="htmlCode" spellcheck="false"><h1>Hello World</h1>
-
-<p>Welcome to JS Browser</p></textarea>
-
-        </div>
-
-        <div class="editor">
-
-            <h2>CSS</h2>
-
-            <textarea id="cssCode" spellcheck="false">body {
-font-family: Arial;
-text-align: center;
-
-}
-
-h1 {
-color: blue;
-}</textarea>
-
-        </div>
-
-        <div class="editor">
-
-            <h2>JavaScript</h2>
-    <textarea id="jsCode" spellcheck="false">let name = "Youssef";
-
-console.log("Hello " + name);</textarea>
-
-        </div>
-
-    </section>
-
-
-    <section class="preview">
-
-        <h2>Preview</h2>
-
-        <iframe
-            id="preview"
-            title="JS Browser Preview"
-            sandbox="allow-scripts">
-        </iframe>
-
-    </section>
-
-
-    <section class="console-section">
-
-        <h2>Console</h2>
-
-        <div id="console"></div>
-
-    </section>
-
-</main>
-
-
-<footer>
-
-    <p>
-        © 2026 JS Browser — Free online HTML, CSS & JavaScript editor.
-    </p>
-
-</footer>
-
-
-<script src="script.js" defer></script>
-
-<script>
-    if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("sw.js")
-            .catch(error => console.log("Service Worker error:", error));
-    }
-</script>
-
+    <script src="script.js"></script>
 </body>
-
 </html>
