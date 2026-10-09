@@ -1,208 +1,234 @@
-const htmlCode = document.querySelector("#htmlCode");
-const cssCode = document.querySelector("#cssCode");
-const jsCode = document.querySelector("#jsCode");
+const editor = document.getElementById("editor");
+const lineNumbers = document.getElementById("lineNumbers");
+const currentTab = document.getElementById("currentTab");
+const saveStatus = document.getElementById("saveStatus");
+const languageLabel = document.getElementById("languageLabel");
+const preview = document.getElementById("preview");
 
-const preview = document.querySelector("#preview");
-const consoleBox = document.querySelector("#console");
+const fileNames = {
+    html: "🌐 index.html",
+    css: "🎨 style.css",
+    js: "🟨 script.js"
+};
 
-const run = document.querySelector("#run");
-const clear = document.querySelector("#clear");
+const languages = {
+    html: "HTML",
+    css: "CSS",
+    js: "JAVASCRIPT"
+};
+
+const defaultFiles = {
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My First Website</title>
+</head>
+<body>
+    <h1>Hello World!</h1>
+    <p>Welcome to my first website.</p>
+    <button onclick="sayHello()">Click Me</button>
+</body>
+</html>`,
+
+    css: `body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 40px;
+    background: #f0f4f8;
+}
+
+h1 {
+    color: #007acc;
+}
+
+p {
+    font-size: 18px;
+}
+
+button {
+    padding: 10px 20px;
+    color: white;
+    background: #007acc;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #005a9e;
+}`,
+
+    js: `function sayHello() {
+    alert("Hello from JS Browser!");
+}
+
+console.log("JavaScript is working!");`
+};
+
+let files = loadFiles();
+let activeFile = "html";
+
+function loadFiles() {
+    try {
+        const saved = localStorage.getItem("jsBrowserFiles");
+
+        if (saved) {
+            const parsed = JSON.parse(saved);
+
+            return {
+                html: typeof parsed.html === "string"
+                    ? parsed.html : defaultFiles.html,
+                css: typeof parsed.css === "string"
+                    ? parsed.css : defaultFiles.css,
+                js: typeof parsed.js === "string"
+                    ? parsed.js : defaultFiles.js
+            };
+        }
+    } catch (error) {
+        console.warn("Could not load saved files.", error);
+    }
+
+    return { ...defaultFiles };
+}
+
+function openFile(file) {
+    saveCurrentEditor();
+
+    activeFile = file;
+    editor.value = files[file];
+
+    currentTab.textContent = fileNames[file];
+    languageLabel.textContent = languages[file];
+
+    document.querySelectorAll(".file").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.file === file
+        );
+    });
+
+    updateLineNumbers();
+    saveStatus.textContent = "Ready";
+}
+
+function saveCurrentEditor() {
+    if (editor && activeFile) {
+        files[activeFile] = editor.value;
+    }
+}
+
+function saveFiles() {
+    saveCurrentEditor();
+
+    try {
+        localStorage.setItem(
+            "jsBrowserFiles",
+            JSON.stringify(files)
+        );
+
+        saveStatus.textContent = "Saved ✓";
+    } catch (error) {
+        saveStatus.textContent = "Save failed";
+        console.error("Could not save files.", error);
+    }
+}
+
+function updateLineNumbers() {
+    const count = editor.value.split("\n").length;
+
+    lineNumbers.textContent = Array.from(
+        { length: count },
+        (_, index) => index + 1
+    ).join("\n");
+}
 
 function runCode() {
+    saveCurrentEditor();
 
-    consoleBox.textContent = "";
+    let html = files.html;
+    const css = files.css;
+    const js = files.js;
 
-    const html = htmlCode.value;
-    const css = cssCode.value;
-    const js = jsCode.value;
+    const styleTag = `<style>\n${css}\n</style>`;
+    const scriptTag = `<script>\n${js}\n<\/script>`;
 
-    const page = `
-<!DOCTYPE html>
-<html>
+    if (/<\/head\s*>/i.test(html)) {
+        html = html.replace(
+            /<\/head\s*>/i,
+            styleTag + "\n</head>"
+        );
+    } else {
+        html = styleTag + "\n" + html;
+    }
 
-<head>
+    if (/<\/body\s*>/i.test(html)) {
+        html = html.replace(
+            /<\/body\s*>/i,
+            scriptTag + "\n</body>"
+        );
+    } else {
+        html += "\n" + scriptTag;
+    }
 
-<meta charset="UTF-8">
-
-<style>
-
-${css}
-
-</style>
-
-</head>
-
-<body>
-
-${html}
-
-<script>
-
-const oldLog = console.log;
-
-console.log = function(...messages) {
-
-    window.parent.postMessage({
-
-        type: "console",
-
-        message: messages
-            .map(message => {
-
-                try {
-
-                    return typeof message === "object"
-                        ? JSON.stringify(message)
-                        : String(message);
-
-                } catch {
-
-                    return String(message);
-
-                }
-
-            })
-            .join(" ")
-
-    }, "*");
-
-    oldLog.apply(console, messages);
-
-};
-
-const oldError = console.error;
-
-console.error = function(...messages) {
-
-    window.parent.postMessage({
-
-        type: "error",
-
-        message: messages
-            .map(message => String(message))
-            .join(" ")
-
-    }, "*");
-
-    oldError.apply(console, messages);
-
-};
-
-window.onerror = function(message) {
-
-    window.parent.postMessage({
-
-        type: "error",
-
-        message: String(message)
-
-    }, "*");
-
-};
-
-try {
-
-${js}
-
-} catch(error) {
-
-    window.parent.postMessage({
-
-        type: "error",
-
-        message: error.message
-
-    }, "*");
-
+    preview.srcdoc = html;
+    saveStatus.textContent = "Preview updated";
 }
 
-<\/script>
-
-</body>
-
-</html>
-`;
-
-    preview.srcdoc = page;
-
-    localStorage.setItem("jsbrowser-html", html);
-    localStorage.setItem("jsbrowser-css", css);
-    localStorage.setItem("jsbrowser-js", js);
-}
-
-run.addEventListener("click", runCode);
-
-window.addEventListener("message", function(event) {
-
-    if (!event.data) {
-        return;
-    }
-
-    if (event.data.type === "console") {
-
-        consoleBox.textContent +=
-            event.data.message + "\n";
-
-    }
-
-    if (event.data.type === "error") {
-
-        consoleBox.textContent +=
-            "Error: " +
-            event.data.message +
-            "\n";
-
-    }
-
+document.querySelectorAll(".file").forEach(button => {
+    button.addEventListener("click", () => {
+        openFile(button.dataset.file);
+    });
 });
 
-clear.addEventListener("click", function() {
-
-    htmlCode.value = "";
-    cssCode.value = "";
-    jsCode.value = "";
-
-    consoleBox.textContent = "";
-
-    preview.srcdoc = "";
-
-    localStorage.removeItem("jsbrowser-html");
-    localStorage.removeItem("jsbrowser-css");
-    localStorage.removeItem("jsbrowser-js");
-
+editor.addEventListener("input", () => {
+    saveCurrentEditor();
+    updateLineNumbers();
+    saveStatus.textContent = "Unsaved changes";
 });
 
-const savedHTML =
-    localStorage.getItem("jsbrowser-html");
+editor.addEventListener("scroll", () => {
+    lineNumbers.scrollTop = editor.scrollTop;
+});
 
-const savedCSS =
-    localStorage.getItem("jsbrowser-css");
-
-const savedJS =
-    localStorage.getItem("jsbrowser-js");
-
-if (savedHTML !== null) {
-    htmlCode.value = savedHTML;
-}
-
-if (savedCSS !== null) {
-    cssCode.value = savedCSS;
-}
-
-if (savedJS !== null) {
-    jsCode.value = savedJS;
-}
-
-document.addEventListener("keydown", function(event) {
-
-    if (event.ctrlKey && event.key === "Enter") {
-
+editor.addEventListener("keydown", event => {
+    if (event.key === "Tab") {
         event.preventDefault();
 
-        runCode();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
 
+        editor.setRangeText("    ", start, end, "end");
+
+        saveCurrentEditor();
+        updateLineNumbers();
+        saveStatus.textContent = "Unsaved changes";
     }
 
+    if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s"
+    ) {
+        event.preventDefault();
+        saveFiles();
+    }
 });
 
+document.getElementById("runBtn").addEventListener(
+    "click",
+    runCode
+);
+
+document.getElementById("refreshBtn").addEventListener(
+    "click",
+    runCode
+);
+
+document.getElementById("saveBtn").addEventListener(
+    "click",
+    saveFiles
+);
+
+openFile("html");
 runCode();
