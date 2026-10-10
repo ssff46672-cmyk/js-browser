@@ -366,3 +366,43 @@ box-sizing: border-box;
     cursor: pointer;
 }
 
+
+.help-button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 9px;
+    background: #252526;
+    color: white;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.help-button:hover {
+    background: #383838;
+}
+
+.help-dialog {
+    width: min(420px, calc(100% - 40px));
+    padding: 24px;
+    border: 1px solid #454545;
+    border-radius: 12px;
+    background: #1e1e1e;
+    color: white;
+    line-height: 1.7;
+}
+
+.help-dialog::backdrop {
+    background: rgb(0 0 0 / 70%);
+}
+
+.help-dialog button {
+    padding: 8px 16px;
+    background: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+
