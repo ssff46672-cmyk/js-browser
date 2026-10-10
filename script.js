@@ -517,3 +517,15 @@ openFile(
         : Object.keys(files)[0]
 );
 runCode();
+
+
+const helpDialog = $("helpDialog");
+
+$("helpButton").addEventListener("click", () => {
+    helpDialog.showModal();
+});
+
+$("closeHelp").addEventListener("click", () => {
+    helpDialog.close();
+});
+
