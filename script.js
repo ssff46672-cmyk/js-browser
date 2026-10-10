@@ -529,3 +529,151 @@ $("closeHelp").addEventListener("click", () => {
     helpDialog.close();
 });
 
+
+/* JS Browser - Examples menu */
+
+const builtInExamples = {
+    calculator: {
+        "index.html": `<h1>Calculator</h1>
+<input id="display" value="0" readonly>
+<div id="keys">
+<button data-v="7">7</button><button data-v="8">8</button><button data-v="9">9</button><button data-v="+">+</button>
+<button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button><button data-v="-">-</button>
+<button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="*">*</button>
+<button data-v="0">0</button><button data-v=".">.</button><button id="equal">=</button><button data-v="/">/</button>
+<button id="clear">Clear</button>
+</div>`,
+        "style.css": `body{font-family:Arial;text-align:center;background:#eef2ff;padding:25px}
+#display{width:230px;padding:12px;font-size:24px;margin-bottom:10px}
+#keys{display:grid;grid-template-columns:repeat(4,60px);gap:7px;justify-content:center}
+button{padding:14px;cursor:pointer;border:0;border-radius:6px;background:#dbeafe}
+#equal{background:#2563eb;color:white}`,
+        "script.js": `const display=document.getElementById("display");
+let expr="";
+document.getElementById("keys").addEventListener("click",e=>{
+ if(e.target.tagName!=="BUTTON")return;
+ if(e.target.id==="clear"){expr="";display.value="0";return}
+ if(e.target.id==="equal"){
+  if(!expr)return;
+  if(!/^[0-9+*/. -]+$/.test(expr)){display.value="Error";expr="";return}
+  try{
+   const result=Function('"use strict";return ('+expr+')')();
+   if(!Number.isFinite(result))throw Error();
+   expr=String(Number(result.toFixed(8)));display.value=expr;
+  }catch{expr="";display.value="Error"}
+  return;
+ }
+ expr+=e.target.dataset.v;display.value=expr;
+});`
+    },
+
+    todo: {
+        "index.html": `<h1>My To-Do List</h1>
+<form id="form"><input id="task" placeholder="Write a task..." required><button>Add</button></form>
+<ul id="list"></ul>`,
+        "style.css": `body{font-family:Arial;max-width:500px;margin:40px auto;padding:15px;background:#f0fdf4}
+h1{color:#166534}input{padding:10px}button{padding:10px;background:#16a34a;color:white;border:0;cursor:pointer}
+li{padding:10px;border-bottom:1px solid #ddd}li span{margin-right:10px}li.done{text-decoration:line-through;color:#888}`,
+        "script.js": `const form=document.getElementById("form");
+const input=document.getElementById("task");
+const list=document.getElementById("list");
+form.addEventListener("submit",e=>{
+ e.preventDefault();
+ const li=document.createElement("li");
+ const text=document.createElement("span");text.textContent=input.value;
+ const done=document.createElement("input");done.type="checkbox";
+ done.addEventListener("change",()=>li.classList.toggle("done",done.checked));
+ const del=document.createElement("button");del.textContent="Delete";
+ del.addEventListener("click",()=>li.remove());
+ li.append(done,text,del);list.append(li);
+ input.value="";
+});`
+    },
+
+    clock: {
+        "index.html": `<h1>Digital Clock</h1><div id="clock">00:00:00</div><p id="date"></p>`,
+        "style.css": `body{font-family:Arial;text-align:center;background:#0f172a;color:white;padding:50px}
+#clock{font-size:clamp(40px,10vw,70px);color:#38bdf8;font-weight:bold}`,
+        "script.js": `function updateClock(){
+ const now=new Date();
+ document.getElementById("clock").textContent=now.toLocaleTimeString();
+ document.getElementById("date").textContent=now.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+}
+updateClock();setInterval(updateClock,1000);`
+    },
+
+    guess: {
+        "index.html": `<h1>Guess the Number</h1>
+<p>Guess a number between 1 and 100.</p>
+<form id="form"><input id="guess" type="number" min="1" max="100" required><button>Guess</button></form>
+<p id="message">Good luck!</p><p>Attempts: <span id="attempts">0</span></p>
+<button id="restart">New Game</button>`,
+        "style.css": `body{font-family:Arial;text-align:center;background:#fff7ed;padding:30px}
+input,button{padding:12px;margin:5px}button{background:#ea580c;color:white;border:0;cursor:pointer}
+#message{font-weight:bold;min-height:24px}`,
+        "script.js": `let secret=Math.floor(Math.random()*100)+1;
+let attempts=0,finished=false;
+const form=document.getElementById("form");
+const input=document.getElementById("guess");
+const message=document.getElementById("message");
+form.addEventListener("submit",e=>{
+ e.preventDefault();if(finished)return;
+ const n=Number(input.value);
+ if(!Number.isInteger(n)||n<1||n>100){message.textContent="Enter a number from 1 to 100.";return}
+ attempts++;document.getElementById("attempts").textContent=attempts;
+ if(n===secret){message.textContent="Correct! You won!";finished=true}
+ else message.textContent=n<secret?"Too low! Try higher.":"Too high! Try lower.";
+ input.select();
+});
+document.getElementById("restart").addEventListener("click",()=>{
+ secret=Math.floor(Math.random()*100)+1;attempts=0;finished=false;
+ document.getElementById("attempts").textContent="0";
+ message.textContent="New game! Good luck.";input.value="";
+});`
+    },
+
+    portfolio: {
+        "index.html": `<header><h1>Your Name</h1><p>Beginner Web Developer</p><a href="#about">About</a> | <a href="#projects">Projects</a> | <a href="#contact">Contact</a></header>
+<main><section id="about"><h2>About Me</h2><p>I am learning HTML, CSS and JavaScript.</p></section>
+<section id="projects"><h2>My Projects</h2><article><h3>Calculator</h3><p>A simple calculator.</p></article><article><h3>To-Do List</h3><p>An app for daily tasks.</p></article></section>
+<section id="contact"><h2>Contact</h2><button id="hello">Say Hello</button><p id="message"></p></section></main>
+<footer>Made with HTML, CSS and JavaScript.</footer>`,
+        "style.css": `body{font-family:Arial;margin:0;line-height:1.6;color:#1e293b}
+header{background:#1d4ed8;color:white;padding:35px;text-align:center}
+a{color:inherit}main{max-width:800px;margin:auto;padding:20px}
+section{padding:20px 0}article{background:#eff6ff;padding:15px;margin:10px 0;border-radius:8px}
+button{padding:10px 15px;background:#2563eb;color:white;border:0;border-radius:5px;cursor:pointer}
+footer{text-align:center;background:#172554;color:white;padding:20px}`,
+        "script.js": `document.getElementById("hello").addEventListener("click",()=>{
+ document.getElementById("message").textContent="Thanks for visiting my portfolio!";
+});`
+    }
+};
+
+const examplesSelect = document.getElementById("examplesSelect");
+const loadExampleButton = document.getElementById("loadExampleButton");
+
+if (examplesSelect && loadExampleButton) {
+    loadExampleButton.addEventListener("click", function () {
+        const example = builtInExamples[examplesSelect.value];
+
+        if (!example) {
+            alert("Please choose an example first.");
+            return;
+        }
+
+        if (!confirm("Load this example? Save your current code first. Files with matching names will be replaced.")) {
+            return;
+        }
+
+        Object.entries(example).forEach(function ([name, content]) {
+            files[name] = content;
+        });
+
+        renderFiles();
+        openFile("index.html");
+        runCode();
+    });
+}
+
+
