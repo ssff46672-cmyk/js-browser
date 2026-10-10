@@ -355,3 +355,14 @@ height: 100%;
 box-sizing: border-box;
 }
 
+.help-button {
+    width: 100%;
+    padding: 9px;
+    margin-top: 12px;
+    background: #252526;
+    color: white;
+    border: 1px solid #454545;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
