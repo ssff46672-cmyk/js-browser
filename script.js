@@ -1,919 +1,973 @@
 
-    function $(id) {
-        return document.getE   if (extension ===
-                        ? "📜"
-                        : "📄";
+"use strict";
 
-            var name = document.createElement("span");
-            name.className = "file-name";
-            name.textContent = filename;
+/* ==========================================
+   JS Browser - Application
+   ========================================== */
 
-            i
+const $ = (id) => document.getElementById(id);
 
-        files[filename] = "";
-        saveProject(false);
-        openFile(filename);
+const editorElement = $("editor");
+const fileListElement = $("fileList");
+const currentTabElement = $("currentTab");
+const saveStatusElement = $("saveStatus");
+const languageLabelElement = $("languageLabel");
+const previewElement = $("preview");
+const consoleOutputElement = $("consoleOutput");
 
-        setStatus("File created");
+const STORAGE_KEY = "jsBrowserProjectV1";
+const MESSAGE_SOURCE = "JS_BROWSER_CONSOLE";
+
+let editor = null;
+let activeFile = "index.html";
+let files = {};
+let activePanel = "preview";
+let saveTimer = null;
+
+const defaultFiles = {
+    "index.html": `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website</title>
+</head>
+<body>
+    <h1>Hello, JS Browser!</h1>
+    <p>Start writing your code here.</p>
+    <button id="helloBtn">Click me</button>
+</body>
+</html>`,
+    "style.css": `body {
+    font-family: Arial, sans-serif;
+    padding: 30px;
+    background: #f4f4f4;
+    color: #222;
+}
+
+h1 {
+    color: #6c63ff;
+}`,
+    "script.js": `console.log("Welcome to JS Browser!");
+
+document.getElementById("helloBtn")?.addEventListener("click", () => {
+    alert("Hello!");
+});`
+};
+
+/* ==========================================
+   Status and local storage
+   ========================================== */
+
+function setStatus(message) {
+    if (saveStatusElement) {
+        saveStatusElement.textContent = message;
     }
+}
 
-    function deleteFile() {
-        if (!activeFile) {
-            return;
-        }
+function loadProject() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
 
-        var names = Object.keys(files);
-
-        if (names.length <= 1) {
-            window.alert("You must keep at least one project file.");
-            return;
-        }
-
-        if (!window.confirm('Delete "' + activeFile + '"? This cannot be undone.')) {
-            return;
-        }
-
-        delete files[activeFile];
-
-        var remaining = sortedFilenames();
-        activeFile = remaining[0];
-
-        saveProject(false);
-        openFile(activeFile);
-        renderFileList();
-
-        setStatus("File deleted");
-    }
-
-    
-
-    function saveProject(showMessage) {
-        if (activeFile && Object.prototype.hasOwnProperty.call(files, activeFile)) {
-            files[activeFile] = getEditorValue();
-        }
-
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
-            localStorage.setItem(ACTIVE_FILE_KEY, activeFile);
-
-            isDirty = false;
-
-            if (showMessage !== false) {
-                setStatus("Project saved");
-            } else {
-                setStatus("Saved automatically");
-            }
-
-            return true;
-        } catch (error) {
-            setStatus("Save failed");
-
-            if (showMessage !== false) {
-                window.alert(
-                    "The project could not be saved in this browser. Export a ZIP backup to avoid losing your work."
-                );
-            }
-
-            return false;
-        }
-    }
-
-    function loadProject() {
-        var restored = false;
-
-        try {
-            var storedFiles = localStorage.getItem(STORAGE_KEY);
-
-            if (storedFiles) {
-                var parsed = JSON.parse(storedFiles);
-
-                if (
-                    parsed &&
-                    typeof parsed === "object" &&
-                    !Array.isArray(parsed)
-                ) {
-                    Object.keys(parsed).forEach(function (filename) {
-                        if (
-                            isValidFilename(filename) &&
-                            typeof parsed[filename] === "string"
-                        ) {
-                            files[filename] = parsed[filename];
-                        }
-                    });
-
-                    restored = Object.keys(files).length > 0;
-                }
-            }
-
-            var storedActive = localStorage.getItem(ACTIVE_FILE_KEY);
+        if (saved) {
+            const project = JSON.parse(saved);
 
             if (
-                storedActive &&
-                Object.prototype.hasOwnProperty.call(files, storedActive)
+                project &&
+                project.files &&
+                typeof project.files === "object" &&
+                Object.keys(project.files).length > 0
             ) {
-                activeFile = storedActive;
+                files = project.files;
+                activeFile = files[project.activeFile]
+                    !== undefined
+                    ? project.activeFile
+                    : Object.keys(files)[0];
+
+                return;
             }
-        } catch (error) {
-            console.warn("Could not restore the saved project.", error);
         }
-
-        if (!restored) {
-            files = {};
-            Object.keys(defaultFiles).forEach(function (filename) {
-                files[filename] = defaultFiles[filename];
-            });
-            activeFile = "index.html";
-        }
+    } catch (error) {
+        console.warn("Could not load the saved project:", error);
     }
 
-    
+    files = { ...defaultFiles };
+    activeFile = "index.html";
+}
 
-    function showPanel(panelName) {
-        if (elements.previewPanel) {
-            elements.previewPanel.classList.toggle("hidden", panelName !== "preview");
-        }
+function saveProject(showMessage = true) {
+    try {
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+                files,
+                activeFile
+            })
+        );
 
-        if (elements.consolePanel) {
-            elements.consolePanel.classList.toggle("hidden", panelName !== "console");
-        }
+        if (showMessage) setStatus("Saved");
 
-        if (elements.panelTabs) {
-            Array.prototype.forEach.call(elements.panelTabs, function (button) {
-                button.classList.toggle(
-                    "active",
-                    button.getAttribute("data-panel") === panelName
-                );
-            });
-        }
+        return true;
+    } catch (error) {
+        setStatus("Save failed");
+        console.error("Could not save project:", error);
+        return false;
+    }
+}
 
-        if (panelName === "preview") {
-            window.setTimeout(refreshEditorLayout, 0);
-        }
+function scheduleSave() {
+    setStatus("Unsaved changes");
+
+    clearTimeout(saveTimer);
+
+    saveTimer = setTimeout(() => {
+        saveProject();
+    }, 500);
+}
+
+function saveCurrentFile() {
+    if (editor) {
+        files[activeFile] = editor.getValue();
     }
 
-    function renderConsole() {
-        if (!elements.consoleOutput) {
-            return;
-        }
+    saveProject();
+}
 
-        elements.consoleOutput.innerHTML = "";
+/* ==========================================
+   Editor and language modes
+   ========================================== */
 
-        if (!consoleMessages.length) {
-            var hint = document.createElement("p");
-            hint.className = "console-hint";
-            hint.textContent = "JavaScript messages and errors appear here.";
-            elements.consoleOutput.appendChild(hint);
-            return;
-        }
+function getMode(filename) {
+    const name = filename.toLowerCase();
 
-        consoleMessages.forEach(function (entry) {
-            var line = document.createElement("div");
-            line.className = "console-line";
-
-            if (entry.type === "error") {
-                line.classList.add("error");
-            } else if (entry.type === "warn") {
-                line.classList.add("warn");
-            }
-
-            var prefix = document.createElement("strong");
-            prefix.textContent = entry.type.toUpperCase() + ": ";
-
-            var message = document.createElement("span");
-            message.textContent = entry.message;
-
-            line.appendChild(prefix);
-            line.appendChild(message);
-
-            elements.consoleOutput.appendChild(line);
-        });
-
-        elements.consoleOutput.scrollTop = elements.consoleOutput.scrollHeight;
+    if (name.endsWith(".html") || name.endsWith(".htm")) {
+        return "htmlmixed";
     }
 
-    function addConsoleMessage(type, message) {
-        consoleMessages.push({
-            type: type || "log",
-            message: String(message)
-        });
-
-        if (consoleMessages.length > 300) {
-            consoleMessages.shift();
-        }
-
-        renderConsole();
+    if (name.endsWith(".css")) {
+        return "css";
     }
 
-    function clearConsole() {
-        consoleMessages = [];
-        renderConsole();
+    if (
+        name.endsWith(".js") ||
+        name.endsWith(".mjs") ||
+        name.endsWith(".cjs")
+    ) {
+        return "javascript";
     }
 
-    function formatConsoleArguments(args) {
-        return Array.prototype.map.call(args, function (value) {
-            if (typeof value === "string") {
-                return value;
-            }
+    if (name.endsWith(".json")) {
+        return { name: "javascript", json: true };
+    }
 
-            if (value instanceof Error) {
-                return value.stack || value.message;
-            }
+    if (name.endsWith(".xml")) {
+        return "xml";
+    }
 
-            try {
-                if (value === undefined) {
-                    return "undefined";
+    return "text";
+}
+
+function getLanguage(filename) {
+    const name = filename.toLowerCase();
+
+    if (name.endsWith(".html") || name.endsWith(".htm")) {
+        return "HTML";
+    }
+
+    if (name.endsWith(".css")) return "CSS";
+
+    if (
+        name.endsWith(".js") ||
+        name.endsWith(".mjs") ||
+        name.endsWith(".cjs")
+    ) {
+        return "JavaScript";
+    }
+
+    if (name.endsWith(".json")) return "JSON";
+
+    return "Text";
+}
+
+function updateLanguage() {
+    if (!editor) return;
+
+    editor.setOption("mode", getMode(activeFile));
+
+    if (currentTabElement) {
+        currentTabElement.textContent = activeFile;
+    }
+
+    if (languageLabelElement) {
+        languageLabelElement.textContent = getLanguage(activeFile);
+    }
+}
+
+function initEditor() {
+    if (!editorElement) {
+        console.error("Editor element not found.");
+        return;
+    }
+
+    if (typeof CodeMirror === "undefined") {
+        console.error("CodeMirror could not load. Check your internet connection.");
+        return;
+    }
+
+    editor = CodeMirror.fromTextArea(editorElement, {
+        mode: getMode(activeFile),
+        theme: "dracula",
+        lineNumbers: true,
+        lineWrapping: false,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        extraKeys: {
+            "Ctrl-S": () => saveCurrentFile(),
+            "Cmd-S": () => saveCurrentFile(),
+            "Ctrl-Space": (cm) => openAutocomplete(cm),
+            "Tab": (cm) => {
+                if (cm.somethingSelected()) {
+                    cm.indentSelection("add");
+                } else {
+                    cm.replaceSelection("    ", "end");
                 }
-
-                if (typeof value === "function") {
-                    return value.toString();
-                }
-
-                return JSON.stringify(value);
-            } catch (error) {
-                return String(value);
             }
-        }).join(" ");
-    }
-
-    window.addEventListener("message", function (event) {
-        if (!elements.preview || event.source !== elements.preview.contentWindow) {
-            return;
         }
-
-        var data = event.data;
-
-        if (!data || data.jsBrowserMessage !== true) {
-            return;
-        }
-
-        addConsoleMessage(data.type || "log", data.message || "");
     });
 
-    
+    editor.on("change", () => {
+        files[activeFile] = editor.getValue();
+        scheduleSave();
+    });
 
-    function escapeScriptClosingTags(code) {
-        return String(code).replace(/<\/script/gi, "<\\/script");
+    editor.on("inputRead", (cm, change) => {
+        if (!change.text || !change.text.length) return;
+
+        const typed = change.text.join("");
+        const line = cm.getLine(cm.getCursor().line);
+        const before = line.slice(0, cm.getCursor().ch);
+
+        if (
+            /[\w$.-]/.test(typed) &&
+            getCurrentWord(before).length >= 2
+        ) {
+            openAutocomplete(cm, true);
+        } else if (typed.includes("<") &&
+                   activeFile.toLowerCase().endsWith(".html")) {
+            openAutocomplete(cm, true);
+        }
+    });
+
+    updateLanguage();
+    editor.setValue(files[activeFile] || "");
+}
+
+/* ==========================================
+   Autocomplete dictionaries
+   ========================================== */
+
+const htmlTags = [
+    "html", "head", "body", "title", "meta", "link",
+    "script", "style", "header", "nav", "main", "section",
+    "article", "aside", "footer", "div", "span", "p",
+    "h1", "h2", "h3", "h4", "h5", "h6", "a", "img",
+    "picture", "video", "audio", "source", "iframe",
+    "ul", "ol", "li", "table", "thead", "tbody", "tfoot",
+    "tr", "th", "td", "form", "label", "input", "textarea",
+    "button", "select", "option", "fieldset", "legend",
+    "details", "summary", "dialog", "canvas", "progress",
+    "meter", "strong", "em", "small", "code", "pre",
+    "blockquote", "br", "hr", "figure", "figcaption"
+];
+
+const htmlAttributes = [
+    "id", "class", "href", "src", "alt", "title", "target",
+    "rel", "type", "name", "value", "placeholder", "required",
+    "disabled", "checked", "selected", "for", "action", "method",
+    "width", "height", "style", "role", "aria-label", "loading",
+    "tabindex", "autocomplete", "maxlength", "minlength"
+];
+
+const cssProperties = [
+    "color", "background", "background-color", "background-image",
+    "font-size", "font-family", "font-weight", "font-style",
+    "text-align", "text-decoration", "text-transform",
+    "text-shadow", "line-height", "letter-spacing", "word-spacing",
+    "width", "height", "min-width", "max-width", "min-height",
+    "max-height", "margin", "margin-top", "margin-right",
+    "margin-bottom", "margin-left", "padding", "padding-top",
+    "padding-right", "padding-bottom", "padding-left", "border",
+    "border-radius", "border-color", "border-width", "box-shadow",
+    "box-sizing", "display", "position", "top", "right", "bottom",
+    "left", "z-index", "overflow", "opacity", "visibility",
+    "float", "clear", "flex", "flex-direction", "flex-wrap",
+    "flex-basis", "flex-grow", "flex-shrink", "justify-content",
+    "align-items", "align-content", "align-self", "gap", "grid",
+    "grid-template-columns", "grid-template-rows", "place-items",
+    "transition", "transform", "animation", "cursor", "outline",
+    "object-fit", "list-style", "white-space", "word-break"
+];
+
+const cssValues = [
+    "flex", "grid", "block", "inline", "inline-block", "none",
+    "hidden", "visible", "relative", "absolute", "fixed", "sticky",
+    "center", "left", "right", "space-between", "space-around",
+    "space-evenly", "column", "row", "wrap", "nowrap", "auto",
+    "inherit", "initial", "unset", "transparent", "pointer",
+    "border-box", "content-box", "cover", "contain", "bold",
+    "normal", "uppercase", "lowercase", "capitalize"
+];
+
+const jsWords = [
+    "const", "let", "var", "function", "return", "if", "else",
+    "switch", "case", "break", "for", "while", "do", "of", "in",
+    "try", "catch", "finally", "throw", "new", "class", "extends",
+    "this", "super", "import", "export", "default", "from", "async",
+    "await", "Promise", "true", "false", "null", "undefined",
+    "typeof", "instanceof", "delete", "void", "yield",
+    "console", "console.log", "console.error", "console.warn",
+    "console.table", "document", "document.querySelector",
+    "document.querySelectorAll", "document.getElementById",
+    "document.createElement", "document.addEventListener",
+    "window", "alert", "prompt", "confirm", "parseInt", "parseFloat",
+    "Number", "String", "Boolean", "Array", "Object", "Math",
+    "Math.random", "Math.floor", "Math.round", "JSON",
+    "JSON.parse", "JSON.stringify", "Date", "setTimeout",
+    "setInterval", "clearTimeout", "clearInterval", "fetch",
+    "addEventListener", "localStorage", "sessionStorage",
+    "innerHTML", "textContent", "classList", "preventDefault",
+    "forEach", "map", "filter", "reduce", "find", "push", "pop",
+    "includes", "startsWith", "endsWith", "toLowerCase", "toUpperCase"
+];
+
+function getCurrentWord(text) {
+    const match = text.match(/[\w$.-]*$/);
+    return match ? match[0] : "";
+}
+
+function getWordRange(cm) {
+    const cursor = cm.getCursor();
+    const line = cm.getLine(cursor.line);
+    const before = line.slice(0, cursor.ch);
+    const word = getCurrentWord(before);
+
+    return {
+        word,
+        from: CodeMirror.Pos(cursor.line, cursor.ch - word.length),
+        to: cursor
+    };
+}
+
+function filterWords(words, prefix) {
+    const lower = prefix.toLowerCase();
+
+    return words
+        .filter(word => word.toLowerCase().startsWith(lower))
+        .map(word => ({
+            text: word,
+            displayText: word
+        }));
+}
+
+function autocompleteHint(cm) {
+    const cursor = cm.getCursor();
+    const line = cm.getLine(cursor.line);
+    const before = line.slice(0, cursor.ch);
+    const range = getWordRange(cm);
+    const filename = activeFile.toLowerCase();
+
+    let suggestions = [];
+
+    if (filename.endsWith(".html") || filename.endsWith(".htm")) {
+        const tagMatch = before.match(/<([a-zA-Z][\w-]*)?$/);
+
+        if (tagMatch) {
+            const prefix = tagMatch[1] || "";
+
+            suggestions = htmlTags
+                .filter(tag => tag.startsWith(prefix))
+                .map(tag => ({
+                    text: tag + ">",
+                    displayText: "<" + tag + ">"
+                }));
+
+            const start = cursor.ch - prefix.length;
+
+            return {
+                list: suggestions,
+                from: CodeMirror.Pos(cursor.line, start),
+                to: cursor
+            };
+        }
+
+        const attributeMatch = before.match(/<[\w-]+\s+([\w-]*)$/);
+
+        if (attributeMatch) {
+            suggestions = filterWords(htmlAttributes, attributeMatch[1]);
+        } else {
+            suggestions = filterWords(htmlTags, range.word);
+        }
+    } else if (filename.endsWith(".css")) {
+        const afterColon = before.match(/:\s*([\w-]*)$/);
+        const property = before.match(/(?:^|[;{]\s*)([\w-]*)$/);
+
+        if (afterColon) {
+            suggestions = filterWords(cssValues, afterColon[1]);
+        } else if (property) {
+            suggestions = filterWords(cssProperties, property[1]);
+        } else {
+            suggestions = filterWords(cssProperties, range.word);
+        }
+    } else if (
+        filename.endsWith(".js") ||
+        filename.endsWith(".mjs") ||
+        filename.endsWith(".cjs")
+    ) {
+        suggestions = filterWords(jsWords, range.word);
     }
 
-    function addConsoleBridge(html) {
-        var bridge = [
-            "<script>",
-            "(function(){",
-            'var send=function(type,args){',
-            'var message=Array.prototype.map.call(args,function(item){',
-            'try{return typeof item==="string"?item:JSON.stringify(item);}',
-            'catch(e){return String(item);}',
-            '}).join(" ");',
-            'parent.postMessage({jsBrowserMessage:true,type:type,message:message},"*");',
-            '};',
-            '["log","info","debug","warn","error"].forEach(function(type){',
-            'var original=console[type];',
-            'console[type]=function(){',
-            'send(type,arguments);',
-            'if(original){original.apply(console,arguments);}',
-            '};',
-            '});',
-            'window.addEventListener("error",function(event){',
-            'send("error",[event.message+" ("+event.filename+":"+event.lineno+")"]);',
-            '});',
-            'window.addEventListener("unhandledrejection",function(event){',
-            'send("error",["Unhandled promise rejection:",event.reason]);',
-            '});',
-            '})();',
-            "<" + "/script>"
-        ].join("");
+    return {
+        list: suggestions,
+        from: range.from,
+        to: range.to
+    };
+}
 
-        if (/<head(?:\s[^>]*)?>/i.test(html)) {
-            return html.replace(/<head(?:\s[^>]*)?>/i, function (match) {
-                return match + bridge;
-            });
-        }
-
-        return bridge + html;
+function openAutocomplete(cm, automatic = false) {
+    if (
+        !cm ||
+        typeof CodeMirror.showHint !== "function"
+    ) {
+        return;
     }
 
-    function injectProjectAssets(html) {
-        var css = "";
-        var js = "";
+    const range = getWordRange(cm);
+    const line = cm.getLine(cm.getCursor().line);
+    const before = line.slice(0, cm.getCursor().ch);
+    const isHtmlTagStart =
+        activeFile.toLowerCase().endsWith(".html") &&
+        before.endsWith("<");
 
-        if (Object.prototype.hasOwnProperty.call(files, "style.css")) {
-            css = files["style.css"];
-        } else if (Object.prototype.hasOwnProperty.call(files, "style.Css")) {
-            css = files["style.Css"];
+    if (automatic && range.word.length < 2 && !isHtmlTagStart) {
+        return;
+    }
+
+    CodeMirror.showHint(cm, autocompleteHint, {
+        completeSingle: false,
+        closeOnUnfocus: true,
+        alignWithWord: true
+    });
+}
+
+/* ==========================================
+   File explorer
+   ========================================== */
+
+function renderFileList() {
+    if (!fileListElement) return;
+
+    fileListElement.replaceChildren();
+
+    Object.keys(files).forEach(filename => {
+        const button = document.createElement("button");
+
+        button.type = "button";
+        button.className = "file-item";
+        button.textContent = filename;
+        button.title = filename;
+
+        if (filename === activeFile) {
+            button.classList.add("active");
         }
 
-        if (Object.prototype.hasOwnProperty.call(files, "script.js")) {
-            js = files["script.js"];
+        button.addEventListener("click", () => openFile(filename));
+
+        fileListElement.appendChild(button);
+    });
+}
+
+function openFile(filename) {
+    if (!Object.prototype.hasOwnProperty.call(files, filename)) {
+        return;
+    }
+
+    if (editor) {
+        files[activeFile] = editor.getValue();
+    }
+
+    activeFile = filename;
+
+    if (editor) {
+        editor.setOption("mode", getMode(filename));
+        editor.setValue(files[filename] || "");
+        updateLanguage();
+    }
+
+    renderFileList();
+    saveProject(false);
+}
+
+function createNewFile() {
+    const filename = prompt(
+        "Enter a filename, for example page.html, style.css or app.js:"
+    );
+
+    if (!filename) return;
+
+    const cleanName = filename.trim();
+
+    if (
+        !cleanName ||
+        /[<>:"/\\|?*\x00-\x1F]/.test(cleanName) ||
+        !/\.(html?|css|js|mjs|json|txt)$/i.test(cleanName)
+    ) {
+        alert("Enter a valid filename, such as page.html or app.js.");
+        return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(files, cleanName)) {
+        alert("This file already exists.");
+        return;
+    }
+
+    files[cleanName] = "";
+    openFile(cleanName);
+    setStatus("File created");
+}
+
+function deleteCurrentFile() {
+    const names = Object.keys(files);
+
+    if (names.length <= 1) {
+        alert("You must keep at least one file in your project.");
+        return;
+    }
+
+    if (!confirm("Delete " + activeFile + "?")) return;
+
+    delete files[activeFile];
+
+    activeFile = Object.keys(files)[0];
+
+    if (editor) {
+        editor.setOption("mode", getMode(activeFile));
+        editor.setValue(files[activeFile] || "");
+        updateLanguage();
+    }
+
+    renderFileList();
+    saveProject();
+}
+
+/* ==========================================
+   Preview and Console
+   ========================================== */
+
+function showConsoleMessage(type, args) {
+    if (!consoleOutputElement) return;
+
+    const row = document.createElement("div");
+    row.className = "console-entry console-" + type;
+
+    const text = args.map(value => {
+        if (typeof value === "string") return value;
+
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
         }
+    }).join(" ");
 
-        // Add project CSS directly to the preview.
-        if (css) {
-            var styleTag = "<style>\n" + css + "\n</style>";
+    row.textContent = "[" + type.toUpperCase() + "] " + text;
+    consoleOutputElement.appendChild(row);
+    consoleOutputElement.scrollTop = consoleOutputElement.scrollHeight;
+}
 
-            if (/<\/head\s*>/i.test(html)) {
-                html = html.replace(/<\/head\s*>/i, styleTag + "\n</head>");
-            } else {
-                html = styleTag + "\n" + html;
-            }
-        }
+function clearConsole() {
+    if (consoleOutputElement) {
+        consoleOutputElement.replaceChildren();
+    }
+}
 
-        // Remove local CSS links because CSS is embedded above.
-        html = html.replace(
-            /<link\b[^>]*href\s*=\s*["'](?:\.\/)?style\.(?:css|Css)["'][^>]*>/gi,
-            ""
+function setPanel(panelName) {
+    activePanel = panelName;
+
+    const previewPanel = $("previewPanel");
+    const consolePanel = $("consolePanel");
+
+    if (previewPanel) {
+        previewPanel.classList.toggle("hidden", panelName !== "preview");
+    }
+
+    if (consolePanel) {
+        consolePanel.classList.toggle("hidden", panelName !== "console");
+    }
+
+    document.querySelectorAll(".panel-tab[data-panel]").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.panel === panelName
         );
+    });
+}
 
-        // Remove the local script.js reference to avoid loading it twice.
-        html = html.replace(
-            /<script\b[^>]*src\s*=\s*["'](?:\.\/)?script\.js["'][^>]*>\s*<\/script\s*>/gi,
-            ""
-        );
+function makePreviewHTML() {
+    const htmlFile =
+        Object.keys(files).find(name => /\.html?$/i.test(name)) ||
+        "index.html";
 
-        // Run project JavaScript after the HTML is parsed.
-        if (js) {
-            var scriptTag = "<script>\n" +
-                escapeScriptClosingTags(js) +
-                "\n<" + "/script>";
+    let html = files[htmlFile] || defaultFiles["index.html"];
 
-            if (/<\/body\s*>/i.test(html)) {
-                html = html.replace(/<\/body\s*>/i, scriptTag + "\n</body>");
-            } else {
-                html += "\n" + scriptTag;
-            }
-        }
+    const css = Object.entries(files)
+        .filter(([name]) => /\.css$/i.test(name))
+        .map(([, content]) => content)
+        .join("\n\n");
 
-        return html;
-    }
+    const js = Object.entries(files)
+        .filter(([name]) => /\.(js|mjs)$/i.test(name))
+        .map(([, content]) => content)
+        .join("\n\n");
 
-    function runCode() {
-        if (!Object.prototype.hasOwnProperty.call(files, activeFile)) {
-            return;
-        }
-
-        files[activeFile] = getEditorValue();
-
-        if (!Object.prototype.hasOwnProperty.call(files, "index.html")) {
-            window.alert("Create an index.html file before running the project.");
-            return;
-        }
-
-        clearConsole();
-
-        var html = files["index.html"];
-        html = injectProjectAssets(html);
-        html = addConsoleBridge(html);
-
-        if (elements.preview) {
-            elements.preview.srcdoc = html;
-        }
-
-        showPanel("preview");
-        setStatus("Project running");
-
-        window.setTimeout(function () {
-            setStatus(isDirty ? "Unsaved changes" : "Ready");
-        }, 1200);
-    }
-
-    
-
-    function exportProject() {
-        if (!window.JSZip) {
-            window.alert(
-                "ZIP export is unavailable because the JSZip library did not load. Check your internet connection and try again."
-            );
-            return;
-        }
-
-        files[activeFile] = getEditorValue();
-
-        var zip = new window.JSZip();
-        var projectFolder = zip.folder("js-browser-project");
-
-        sortedFilenames().forEach(function (filename) {
-            projectFolder.file(filename, files[filename]);
-        });
-
-        projectFolder.file(
-            "README.txt",
-            [
-                "JS Browser Project",
-                "==================",
-                "",
-                "1. Open index.html in your browser.",
-                "2. Edit style.css to change the design.",
-                "3. Edit script.js to add JavaScript behavior.",
-                "",
-                "Note: Some browser features require a local web server."
-            ].join("\n")
-        );
-
-        setStatus("Preparing ZIP...");
-
-        zip.generateAsync({
-            type: "blob",
-            compression: "DEFLATE",
-            compressionOptions: { level: 6 }
-        }).then(function (blob) {
-            var url = URL.createObjectURL(blob);
-            var link = document.createElement("a");
-
-            link.href = url;
-            link.download = "js-browser-project.zip";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            window.setTimeout(function () {
-                URL.revokeObjectURL(url);
-            }, 1500);
-
-            setStatus("ZIP exported");
-        }).catch(function (error) {
-            console.error("ZIP export failed:", error);
-            setStatus("ZIP export failed");
-            window.alert("Could not export the ZIP file. Please try again.");
-        });
-    }
-
-    
-
-    var examples = {
-        calculator: {
-            "index.html": [
-                "<!DOCTYPE html>",
-                '<html lang="en">',
-                "<head>",
-                '    <meta charset="UTF-8">',
-                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                "    <title>Calculator</title>",
-                "</head>",
-                "<body>",
-                '    <main class="calculator">',
-                "        <h1>Calculator</h1>",
-                '        <input id="display" type="text" value="0" readonly>',
-                '        <div class="keys">',
-                '            <button data-value="7">7</button>',
-                '            <button data-value="8">8</button>',
-                '            <button data-value="9">9</button>',
-                '            <button data-value="/">÷</button>',
-                '            <button data-value="4">4</button>',
-                '            <button data-value="5">5</button>',
-                '            <button data-value="6">6</button>',
-                '            <button data-value="*">×</button>',
-                '            <button data-value="1">1</button>',
-                '            <button data-value="2">2</button>',
-                '            <button data-value="3">3</button>',
-                '            <button data-value="-">−</button>',
-                '            <button data-value="0">0</button>',
-                '            <button data-value=".">.</button>',
-                '            <button id="clear">C</button>',
-                '            <button data-value="+">+</button>',
-                '            <button id="equals">=</button>',
-                "        </div>",
-                "    </main>",
-                "    <script src=\"script.js\"><" + "/script>",
-                "</body>",
-                "</html>"
-            ].join("\n"),
-
-            "style.css": [
-                "body { font-family: Arial; background: #eef2ff; padding: 30px; }",
-                ".calculator { max-width: 320px; margin: auto; padding: 22px; background: white; border-radius: 16px; box-shadow: 0 8px 25px #0002; }",
-                "h1 { text-align: center; color: #4f46e5; }",
-                "#display { width: 100%; box-sizing: border-box; padding: 15px; margin-bottom: 12px; font-size: 24px; text-align: right; }",
-                ".keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }",
-                "button { padding: 14px; border: 0; border-radius: 8px; background: #e0e7ff; cursor: pointer; font-size: 18px; }",
-                "button:hover { background: #c7d2fe; }",
-                "#equals { grid-column: span 4; background: #4f46e5; color: white; }"
-            ].join("\n"),
-
-            "script.js": [
-                'var display = document.getElementById("display");',
-                'var keys = document.querySelectorAll("[data-value]");',
-                'var expression = "";',
-                'keys.forEach(function (key) {',
-                '    key.addEventListener("click", function () {',
-                '        expression += key.getAttribute("data-value");',
-                '        display.value = expression;',
-                '    });',
-                '});',
-                'document.getElementById("clear").addEventListener("click", function () {',
-                '    expression = ""; display.value = "0";',
-                '});',
-                'document.getElementById("equals").addEventListener("click", function () {',
-                '    try {',
-                '        if (!/^[0-9+*/.() -]+$/.test(expression)) throw new Error("Invalid input");',
-                '        var result = Function("return (" + expression + ")")();',
-                '        if (!Number.isFinite(result)) throw new Error("Invalid calculation");',
-                '        display.value = result; expression = String(result);',
-                '    } catch (error) { display.value = "Error"; expression = ""; }',
-                '});'
-            ].join("\n")
-        },
-
-        todo: {
-            "index.html": [
-                "<!DOCTYPE html>",
-                '<html lang="en">',
-                "<head>",
-                '    <meta charset="UTF-8">',
-                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                "    <title>To-Do List</title>",
-                "</head>",
-                "<body>",
-                '    <main class="app">',
-                "        <h1>My To-Do List</h1>",
-                '        <form id="todoForm">',
-                '            <input id="todoInput" placeholder="What do you need to do?" required>',
-                '            <button type="submit">Add</button>',
-                "        </form>",
-                '        <ul id="todoList"></ul>',
-                "    </main>",
-                "    <script src=\"script.js\"><" + "/script>",
-                "</body>",
-                "</html>"
-            ].join("\n"),
-
-            "style.css": [
-                "body { font-family: Arial; background: #f1f5f9; padding: 30px; }",
-                ".app { max-width: 500px; margin: auto; background: white; padding: 25px; border-radius: 14px; }",
-                "h1 { color: #0f766e; }",
-                "form { display: flex; gap: 8px; }",
-                "input { flex: 1; min-width: 0; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }",
-                "button { padding: 12px 18px; border: 0; border-radius: 8px; background: #0f766e; color: white; cursor: pointer; }",
-                "li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }",
-                "li.done span { text-decoration: line-through; color: #94a3b8; }",
-                "li button { background: #dc2626; padding: 7px 10px; }"
-            ].join("\n"),
-
-            "script.js": [
-                'var form = document.getElementById("todoForm");',
-                'var input = document.getElementById("todoInput");',
-                'var list = document.getElementById("todoList");',
-                'form.addEventListener("submit", function (event) {',
-                '    event.preventDefault();',
-                '    var text = input.value.trim();',
-                '    if (!text) return;',
-                '    var item = document.createElement("li");',
-                '    var label = document.createElement("span");',
-                '    label.textContent = text;',
-                '    label.style.cursor = "pointer";',
-                '    label.addEventListener("click", function () { item.classList.toggle("done"); });',
-                '    var remove = document.createElement("button");',
-                '    remove.textContent = "Delete";',
-                '    remove.type = "button";',
-                '    remove.addEventListener("click", function () { item.remove(); });',
-                '    item.appendChild(label); item.appendChild(remove);',
-                '    list.appendChild(item);',
-                '    input.value = ""; input.focus();',
-                '});'
-            ].join("\n")
-        },
-
-        clock: {
-            "index.html": [
-                "<!DOCTYPE html>",
-                '<html lang="en">',
-                "<head>",
-                '    <meta charset="UTF-8">',
-                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                "    <title>Digital Clock</title>",
-                "</head>",
-                "<body>",
-                '    <main class="clock-card">',
-                "        <h1>Digital Clock</h1>",
-                '        <div id="clock">00:00:00</div>',
-                '        <p id="date"></p>',
-                "    </main>",
-                "    <script src=\"script.js\"><" + "/script>",
-                "</body>",
-                "</html>"
-            ].join("\n"),
-
-            "style.css": [
-                "body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f172a; font-family: Arial; color: white; }",
-                ".clock-card { text-align: center; padding: 35px; border-radius: 20px; background: #1e293b; box-shadow: 0 10px 40px #0005; }",
-                "h1 { color: #38bdf8; }",
-                "#clock { font-size: clamp(35px, 8vw, 65px); font-weight: bold; letter-spacing: 3px; }",
-                "#date { color: #cbd5e1; }"
-            ].join("\n"),
-
-            "script.js": [
-                'function updateClock() {',
-                '    var now = new Date();',
-                '    document.getElementById("clock").textContent = now.toLocaleTimeString();',
-                '    document.getElementById("date").textContent = now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });',
-                '}',
-                'updateClock();',
-                'setInterval(updateClock, 1000);'
-            ].join("\n")
-        },
-
-        guess: {
-            "index.html": [
-                "<!DOCTYPE html>",
-                '<html lang="en">',
-                "<head>",
-                '    <meta charset="UTF-8">',
-                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                "    <title>Guess the Number</title>",
-                "</head>",
-                "<body>",
-                '    <main class="game">',
-                "        <h1>Guess the Number</h1>",
-                "        <p>I'm thinking of a number between 1 and 100.</p>",
-                '        <form id="guessForm">',
-                '            <input id="guessInput" type="number" min="1" max="100" placeholder="Enter a number" required>',
-                '            <button type="submit">Guess</button>',
-                "        </form>",
-                '        <p id="message" aria-live="polite">Good luck!</p>',
-                '        <p>Attempts: <strong id="attempts">0</strong></p>',
-                '        <button id="restart" type="button">New Game</button>',
-                "    </main>",
-                "    <script src=\"script.js\"><" + "/script>",
-                "</body>",
-                "</html>"
-            ].join("\n"),
-
-            "style.css": [
-                "body { font-family: Arial; background: #fef3c7; padding: 30px; }",
-                ".game { max-width: 500px; margin: 40px auto; padding: 25px; background: white; border-radius: 16px; text-align: center; }",
-                "h1 { color: #b45309; }",
-                "input { padding: 12px; width: 160px; max-width: 55%; border: 1px solid #d1d5db; border-radius: 8px; }",
-                "button { padding: 12px 16px; border: 0; border-radius: 8px; background: #d97706; color: white; cursor: pointer; }",
-                "#message { font-weight: bold; min-height: 24px; }"
-            ].join("\n"),
-
-            "script.js": [
-                'var secret = Math.floor(Math.random() * 100) + 1;',
-                'var attempts = 0;',
-                'var form = document.getElementById("guessForm");',
-                'var input = document.getElementById("guessInput");',
-                'var message = document.getElementById("message");',
-                'var attemptsLabel = document.getElementById("attempts");',
-                'form.addEventListener("submit", function (event) {',
-                '    event.preventDefault();',
-                '    var guess = Number(input.value);',
-                '    if (guess < 1 || guess > 100 || !Number.isInteger(guess)) {',
-                '        message.textContent = "Enter a whole number from 1 to 100."; return;',
-                '    }',
-                '    attempts++; attemptsLabel.textContent = attempts;',
-                '    if (guess === secret) {',
-                '        message.textContent = "Correct! You won in " + attempts + " attempts!";',
-                '    } else if (guess < secret) {',
-                '        message.textContent = "Too low! Try a bigger number.";',
-                '    } else {',
-                '        message.textContent = "Too high! Try a smaller number.";',
-                '    }',
-                '});',
-                'document.getElementById("restart").addEventListener("click", function () {',
-                '    secret = Math.floor(Math.random() * 100) + 1;',
-                '    attempts = 0; attemptsLabel.textContent = "0";',
-                '    message.textContent = "New game! Good luck!";',
-                '    input.value = ""; input.focus();',
-                '});'
-            ].join("\n")
-        },
-
-        portfolio: {
-            "index.html": [
-                "<!DOCTYPE html>",
-                '<html lang="en">',
-                "<head>",
-                '    <meta charset="UTF-8">',
-                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">',
-                "    <title>My Portfolio</title>",
-                "</head>",
-                "<body>",
-                '    <header class="hero">',
-                "        <p>HELLO, I'M</p>",
-                "        <h1>Your Name</h1>",
-                "        <h2>Web Developer</h2>",
-                "        <p>I create useful and beautiful websites for the web.</p>",
-                '        <a href="#projects">View My Projects</a>',
-                "    </header>",
-                '    <section class="about">',
-                "        <h2>About Me</h2>",
-                "        <p>I enjoy learning new technologies and building projects with HTML, CSS, and JavaScript.</p>",
-                "    </section>",
-                '    <section id="projects" class="projects">',
-                "        <h2>My Projects</h2>",
-                '        <article><h3>Project One</h3><p>A responsive website built with HTML and CSS.</p></article>',
-                '        <article><h3>Project Two</h3><p>An interactive application built with JavaScript.</p></article>',
-                "    </section>",
-                "    <footer>© 2026 Your Name. Built with HTML, CSS and JavaScript.</footer>",
-                "</body>",
-                "</html>"
-            ].join("\n"),
-
-            "style.css": [
-                "* { box-sizing: border-box; }",
-                "body { margin: 0; font-family: Arial, sans-serif; color: #1f2937; line-height: 1.7; }",
-                ".hero { padding: 80px 20px; text-align: center; background: linear-gradient(135deg, #312e81, #6366f1); color: white; }",
-                ".hero h1 { font-size: clamp(40px, 8vw, 70px); margin: 5px; }",
-                ".hero h2 { color: #c7d2fe; }",
-                ".hero a { display: inline-block; margin-top: 15px; padding: 12px 20px; background: white; color: #4338ca; border-radius: 8px; text-decoration: none; font-weight: bold; }",
-                ".about, .projects { max-width: 900px; margin: auto; padding: 35px 20px; }",
-                ".projects article { display: inline-block; vertical-align: top; width: 45%; margin: 1%; padding: 20px; background: #f3f4f6; border-radius: 12px; }",
-                "footer { padding: 25px; text-align: center; background: #111827; color: white; }",
-                "@media (max-width: 600px) { .projects article { width: 100%; margin: 10px 0; } }"
-            ].join("\n"),
-
-            "script.js": [
-                'console.log("Welcome to your portfolio!");'
-            ].join("\n")
-        }
+    const consoleBridge = `
+<script>
+(function () {
+    const send = (type, args) => {
+        try {
+            parent.postMessage({
+                source: "${MESSAGE_SOURCE}",
+                type: type,
+                args: Array.from(args).map(item => {
+                    if (item instanceof Error) return item.stack || item.message;
+                    if (typeof item === "undefined") return "undefined";
+                    try {
+                        return typeof item === "object"
+                            ? JSON.stringify(item)
+                            : String(item);
+                    } catch (_) {
+                        return String(item);
+                    }
+                })
+            }, "*");
+        } catch (_) {}
     };
 
-    function loadExample() {
-        var select = elements.examplesSelect;
-        var exampleName = select ? select.value : "";
+    ["log", "info", "warn", "error", "table"].forEach(type => {
+        const original = console[type].bind(console);
 
-        if (!exampleName || !examples[exampleName]) {
-            window.alert("Please choose an example first.");
-            return;
-        }
+        console[type] = function () {
+            original.apply(console, arguments);
+            send(type, arguments);
+        };
+    });
 
-        if (
-            isDirty &&
-            !window.confirm("Load this example? Your current unsaved changes will be replaced.")
-        ) {
-            return;
-        }
+    window.addEventListener("error", function (event) {
+        send("error", [event.message + " (line " + event.lineno + ")"]);
+    });
 
-        files = {};
+    window.addEventListener("unhandledrejection", function (event) {
+        send("error", ["Unhandled promise rejection:", event.reason]);
+    });
+})();
+<\/script>`;
 
-        Object.keys(examples[exampleName]).forEach(function (filename) {
-            files[filename] = examples[exampleName][filename];
+    const cssBlock = css
+        ? "<style>\n" + css + "\n</style>"
+        : "";
+
+    const jsBlock = js
+        ? "<script>\n" + js + "\n<\/script>"
+        : "";
+
+    if (/<\/head\s*>/i.test(html)) {
+        html = html.replace(/<\/head\s*>/i, cssBlock + "\n</head>");
+    } else {
+        html = cssBlock + html;
+    }
+
+    if (/<\/body\s*>/i.test(html)) {
+        html = html.replace(
+            /<\/body\s*>/i,
+            consoleBridge + "\n" + jsBlock + "\n</body>"
+        );
+    } else {
+        html += consoleBridge + "\n" + jsBlock;
+    }
+
+    return html;
+}
+
+function runCode() {
+    if (!previewElement) return;
+
+    if (editor) {
+        files[activeFile] = editor.getValue();
+    }
+
+    saveProject(false);
+    clearConsole();
+
+    showConsoleMessage("info", ["Running project..."]);
+
+    previewElement.srcdoc = makePreviewHTML();
+    setPanel("preview");
+    setStatus("Running");
+}
+
+function handlePreviewMessage(event) {
+    if (!event.data || event.data.source !== MESSAGE_SOURCE) {
+        return;
+    }
+
+    const type = ["log", "info", "warn", "error", "table"]
+        .includes(event.data.type)
+        ? event.data.type
+        : "log";
+
+    showConsoleMessage(type, event.data.args || []);
+}
+
+/* ==========================================
+   Export project as ZIP
+   ========================================== */
+
+async function exportProject() {
+    if (editor) {
+        files[activeFile] = editor.getValue();
+    }
+
+    if (typeof JSZip === "undefined") {
+        alert("ZIP library did not load. Check your internet connection.");
+        return;
+    }
+
+    try {
+        const zip = new JSZip();
+
+        Object.entries(files).forEach(([filename, content]) => {
+            zip.file(filename, content);
         });
 
-        activeFile = "index.html";
-        isDirty = false;
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
 
-        saveProject(false);
-        openFile(activeFile);
-        renderFileList();
-        runCode();
+        link.href = url;
+        link.download = "js-browser-project.zip";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
 
-        setStatus("Example loaded");
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        setStatus("ZIP exported");
+    } catch (error) {
+        console.error("ZIP export failed:", error);
+        alert("Could not export the project.");
+    }
+}
+
+/* ==========================================
+   Example projects
+   ========================================== */
+
+const examples = {
+    calculator: {
+        "index.html": `<h1>Calculator</h1>
+<input id="a" type="number" placeholder="First number">
+<input id="b" type="number" placeholder="Second number">
+<button id="add">Add</button>
+<p id="result">Result: </p>`,
+        "style.css": `body { font-family: Arial; padding: 25px; }
+input, button { padding: 10px; margin: 5px; }
+button { cursor: pointer; }`,
+        "script.js": `document.getElementById("add").addEventListener("click", () => {
+    const a = Number(document.getElementById("a").value);
+    const b = Number(document.getElementById("b").value);
+    document.getElementById("result").textContent = "Result: " + (a + b);
+});`
+    },
+
+    todo: {
+        "index.html": `<h1>To-Do List</h1>
+<input id="task" placeholder="Enter a task">
+<button id="add">Add task</button>
+<ul id="tasks"></ul>`,
+        "style.css": `body { font-family: Arial; padding: 25px; }
+button, input { padding: 9px; }
+li { margin: 10px 0; cursor: pointer; }`,
+        "script.js": `const input = document.getElementById("task");
+const list = document.getElementById("tasks");
+
+document.getElementById("add").addEventListener("click", () => {
+    const value = input.value.trim();
+    if (!value) return;
+
+    const item = document.createElement("li");
+    item.textContent = value + " — click to delete";
+    item.addEventListener("click", () => item.remove());
+    list.appendChild(item);
+    input.value = "";
+});`
+    },
+
+    clock: {
+        "index.html": `<h1>Digital Clock</h1>
+<div id="clock"></div>`,
+        "style.css": `body { text-align: center; padding: 40px; font-family: Arial; }
+#clock { font-size: 48px; color: #6c63ff; }`,
+        "script.js": `function updateClock() {
+    document.getElementById("clock").textContent =
+        new Date().toLocaleTimeString();
+}
+updateClock();
+setInterval(updateClock, 1000);`
+    },
+
+    guess: {
+        "index.html": `<h1>Guess the Number</h1>
+<p>Guess a number between 1 and 10.</p>
+<input id="guess" type="number" min="1" max="10">
+<button id="check">Check</button>
+<p id="message"></p>`,
+        "style.css": `body { font-family: Arial; padding: 25px; }
+input, button { padding: 10px; }`,
+        "script.js": `const secret = Math.floor(Math.random() * 10) + 1;
+
+document.getElementById("check").addEventListener("click", () => {
+    const guess = Number(document.getElementById("guess").value);
+    const message = document.getElementById("message");
+
+    if (guess === secret) message.textContent = "Correct!";
+    else if (guess < secret) message.textContent = "Try a higher number.";
+    else message.textContent = "Try a lower number.";
+});`
+    },
+
+    portfolio: {
+        "index.html": `<header>
+<h1>My Portfolio</h1>
+<p>Web Developer in Training</p>
+</header>
+<main>
+<h2>About Me</h2>
+<p>I am learning HTML, CSS and JavaScript.</p>
+<h2>My Skills</h2>
+<p>HTML · CSS · JavaScript</p>
+</main>`,
+        "style.css": `body { margin: 0; font-family: Arial; color: #222; }
+header { background: #171717; color: white; text-align: center; padding: 45px; }
+main { max-width: 700px; margin: 30px auto; padding: 20px; }
+h2 { color: #6c63ff; }`,
+        "script.js": `console.log("Portfolio loaded successfully!");`
+    }
+};
+
+function loadExample() {
+    const select = $("examplesSelect");
+
+    if (!select || !select.value) {
+        alert("Please choose an example first.");
+        return;
     }
 
-    function openHelp() {
-        var dialog = elements.helpDialog;
+    const example = examples[select.value];
 
-        if (!dialog) {
-            window.alert(
-                "1. Select a file from Explorer.\n" +
-                "2. Write your code.\n" +
-                "3. Click Run to see your website.\n" +
-                "4. Use Console to inspect messages and errors.\n" +
-                "5. Click Save to save your work."
-            );
-            return;
-        }
+    if (!example) return;
 
-        if (typeof dialog.showModal === "function") {
-            dialog.showModal();
-        } else {
-            dialog.setAttribute("open", "open");
-        }
+    if (!confirm("Load this example? Your current project files will be replaced.")) {
+        return;
     }
 
-    function closeHelp() {
-        var dialog = elements.helpDialog;
+    files = {};
 
-        if (!dialog) {
-            return;
-        }
+    Object.entries(example).forEach(([filename, content]) => {
+        files[filename] = content;
+    });
 
-        if (typeof dialog.close === "function") {
-            dialog.close();
-        } else {
-            dialog.removeAttribute("open");
-        }
+    activeFile = "index.html";
+
+    if (editor) {
+        editor.setOption("mode", getMode(activeFile));
+        editor.setValue(files[activeFile]);
+        updateLanguage();
     }
 
-    
+    renderFileList();
+    saveProject();
+    runCode();
+}
 
-    document.addEventListener("keydown", function (event) {
-        var key = event.key ? event.key.toLowerCase() : "";
+/* ==========================================
+   Help dialog and interface buttons
+   ========================================== */
 
-        if ((event.ctrlKey || event.metaKey) && key === "s") {
-            event.preventDefault();
-            saveProject(true);
-        }
+function setupInterface() {
+    $("newFileBtn")?.addEventListener("click", createNewFile);
+    $("sidebarNewBtn")?.addEventListener("click", createNewFile);
+    $("deleteFileBtn")?.addEventListener("click", deleteCurrentFile);
+    $("saveBtn")?.addEventListener("click", saveCurrentFile);
+    $("exportBtn")?.addEventListener("click", exportProject);
+    $("runBtn")?.addEventListener("click", runCode);
+    $("refreshBtn")?.addEventListener("click", runCode);
+    $("clearConsoleBtn")?.addEventListener("click", clearConsole);
+    $("loadExampleButton")?.addEventListener("click", loadExample);
 
-        if ((event.ctrlKey || event.metaKey) && key === "enter") {
-            event.preventDefault();
-            runCode();
-        }
+    document.querySelectorAll(".panel-tab[data-panel]").forEach(button => {
+        button.addEventListener("click", () => {
+            setPanel(button.dataset.panel);
+        });
+    });
 
-        if (
-            (event.ctrlKey || event.metaKey) &&
-            key === "n" &&
-            !event.shiftKey
-        ) {
-            event.preventDefault();
-            createFile();
+    const helpDialog = $("helpDialog");
+
+    $("helpButton")?.addEventListener("click", () => {
+        if (helpDialog && typeof helpDialog.showModal === "function") {
+            helpDialog.showModal();
+        } else if (helpDialog) {
+            helpDialog.setAttribute("open", "");
         }
     });
 
-
-
-    function connectEvents() {
-        if (elements.runBtn) {
-            elements.runBtn.addEventListener("click", runCode);
+    $("closeHelp")?.addEventListener("click", () => {
+        if (helpDialog && typeof helpDialog.close === "function") {
+            helpDialog.close();
+        } else if (helpDialog) {
+            helpDialog.removeAttribute("open");
         }
+    });
 
-        if (elements.saveBtn) {
-            elements.saveBtn.addEventListener("click", function () {
-                saveProject(true);
-            });
-        }
+    window.addEventListener("message", handlePreviewMessage);
 
-        if (elements.newFileBtn) {
-            elements.newFileBtn.addEventListener("click", createFile);
-        }
+    window.addEventListener("beforeunload", () => {
+        if (editor) files[activeFile] = editor.getValue();
+        saveProject(false);
+    });
+}
 
-        if (elements.sidebarNewBtn) {
-            elements.sidebarNewBtn.addEventListener("click", createFile);
-        }
+/* ==========================================
+   Start the application
+   ========================================== */
 
-        if (elements.deleteFileBtn) {
-            elements.deleteFileBtn.addEventListener("click", deleteFile);
-        }
+function startApp() {
+    loadProject();
+    initEditor();
+    renderFileList();
+    setupInterface();
 
-        if (elements.exportBtn) {
-            elements.exportBtn.addEventListener("click", exportProject);
-        }
-
-        if (elements.refreshBtn) {
-            elements.refreshBtn.addEventListener("click", runCode);
-        }
-
-        if (elements.clearConsoleBtn) {
-            elements.clearConsoleBtn.addEventListener("click", clearConsole);
-        }
-
-        if (elements.helpButton) {
-            elements.helpButton.addEventListener("click", openHelp);
-        }
-
-        if (elements.closeHelp) {
-            elements.closeHelp.addEventListener("click", closeHelp);
-        }
-
-        if (elements.loadExampleButton) {
-            elements.loadExampleButton.addEventListener("click", loadExample);
-        }
-
-        if (elements.panelTabs) {
-            Array.prototype.forEach.call(elements.panelTabs, function (button) {
-                button.addEventListener("click", function () {
-                    var panel = button.getAttribute("data-panel");
-
-                    if (panel === "preview" || panel === "console") {
-                        showPanel(panel);
-                    }
-                });
-            });
-        }
+    if (editor) {
+        editor.refresh();
+        editor.focus();
     }
 
+    setStatus("Ready");
+}
 
-
-    function initialize() {
-        initializeEditor();
-        loadProject();
-        connectEvents();
-
-        if (!Object.prototype.hasOwnProperty.call(files, activeFile)) {
-            activeFile = sortedFilenames()[0];
-        }
-
-        if (!activeFile) {
-            files = {};
-            Object.keys(defaultFiles).forEach(function (filename) {
-                files[filename] = defaultFiles[filename];
-            });
-            activeFile = "index.html";
-        }
-
-        openFile(activeFile);
-        renderFileList();
-        renderConsole();
-
-        window.setTimeout(function () {
-            runCode();
-            setStatus("Ready");
-        }, 100);
-    }
-
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initialize);
-    } else {
-        initialize();
-    }
-
-})();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startApp);
+} else {
+    startApp();
+}
