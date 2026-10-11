@@ -298,13 +298,20 @@ function injectIntoHTML(html, css, js) {
         };
     });
 
-    window.addEventListener("error", function (event) {
-        window.parent.postMessage({
-            source: "js-browser-console",
-            level: "error",
-            args: [event.message || "JavaScript error"]
-        }, "*");
-    });
+    window.addEventListener("message", event => {
+    if (event.source !== preview.contentWindow) return;
+
+    const data = event.data;
+    if (!data || data.source !== "js-browser-console" ||
+        !Array.isArray(data.args)) return;
+
+    addConsoleMessage(
+        ["log", "info", "warn", "error"].includes(data.level)
+            ? data.level : "log",
+        data.args
+    );
+});
+
 
     window.addEventListener("unhandledrejection", function (event) {
         window.parent.postMessage({
