@@ -483,18 +483,15 @@ if (typeof CodeMirror !== "undefined") {
     });
 }
 
-window.addEventListener("message", event => {
-    if (event.source !== preview.contentWindow) return;
-
-    const data = event.data;
-    if (!data || data.source !== "js-browser-console" ||
-        !Array.isArray(data.args)) return;
-
-    addConsoleMessage(
-        ["log", "info", "warn", "error"].includes(data.level)
-            ? data.level : "log",
-        data.args
-    );
+window.addEventListener("error", function (event) {
+    window.parent.postMessage({
+        source: "js-browser-console",
+        level: "error",
+        args: [
+            "Preview error: " +
+            (event.message || "JavaScript error")
+        ]
+    }, "*");
 });
 
 $("runBtn").addEventListener("click", runCode);
