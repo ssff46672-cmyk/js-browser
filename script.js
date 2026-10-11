@@ -207,6 +207,12 @@ function addConsoleMessage(level, args) {
 
 function clearConsole() {
     consoleOutput.innerHTML = "";
+
+    const hint = document.createElement("p");
+    hint.className = "console-hint";
+    hint.textContent = "JavaScript messages and errors appear here.";
+
+    consoleOutput.appendChild(hint);
 }
 
 function findMainFile() {
