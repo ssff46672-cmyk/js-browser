@@ -122,6 +122,21 @@ function setEditorMode(filename) {
 function refreshEditor() {
     if (editor) editor.refresh();
 }
+// Refresh the editor when the browser window changes size.
+window.addEventListener("resize", refreshEditor);
+
+// Refresh the editor when its container changes size.
+if ("ResizeObserver" in window) {
+    const editorContainer = document.querySelector(".editor-container");
+
+    if (editorContainer) {
+        const editorObserver = new ResizeObserver(() => {
+            refreshEditor();
+        });
+
+        editorObserver.observe(editorContainer);
+    }
+}
 
 function saveCurrentEditor() {
     if (activeFile && editorElement) {
