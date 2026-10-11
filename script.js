@@ -316,9 +316,11 @@ function injectIntoHTML(html, css, js) {
 })();
 `;
 
-    const scriptTag =
-        "<scr" + "ipt>\n" + runtime + "\n" +
-        safeJS + "\n" + "</scr" + "ipt>";
+    const runtimeTag =
+    "<scr" + "ipt>\n" + runtime + "\n</scr" + "ipt>";
+
+const userScriptTag =
+    "<scr" + "ipt>\n" + safeJS + "\n</scr" + "ipt>";
 
     if (/<\/head\s*>/i.test(html)) {
         html = html.replace(/<\/head\s*>/i, styleTag + "\n</head>");
@@ -331,10 +333,13 @@ function injectIntoHTML(html, css, js) {
     }
 
     if (/<\/body\s*>/i.test(html)) {
-        html = html.replace(/<\/body\s*>/i, scriptTag + "\n</body>");
-    } else {
-        html += "\n" + scriptTag;
-    }
+    html = html.replace(
+        /<\/body\s*>/i,
+        runtimeTag + "\n" + userScriptTag + "\n</body>"
+    );
+} else {
+    html += "\n" + runtimeTag + "\n" + userScriptTag;
+}
 
     return html;
 }
