@@ -345,7 +345,7 @@ const userScriptTag =
 }
 
 function runCode() {
-    console.log("RUN BUTTON CLICKED");
+
 
     saveCurrentEditor();
     clearConsole();
