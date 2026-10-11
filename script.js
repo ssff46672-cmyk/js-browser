@@ -363,29 +363,6 @@ function runCode() {
     const css = files["style.css"] || files["style.Css"] || "";
     const js = files["script.js"] || "";
 
-    // Check JavaScript syntax before running the preview.
-try {
-    new Function(js);
-} catch (error) {
-    clearConsole();
-
-    addConsoleMessage("error", [
-        error.name + ": " + error.message
-    ]);
-
-    $("previewPanel").classList.add("hidden");
-    $("consolePanel").classList.remove("hidden");
-
-    document.querySelectorAll(".panel-tab").forEach(button => {
-        button.classList.toggle(
-            "active",
-            button.dataset.panel === "console"
-        );
-    });
-
-    return;
-}
-
     // CSS and JS are inserted directly from the editor workspace.
     preview.srcdoc = injectIntoHTML(html, css, js);
 
