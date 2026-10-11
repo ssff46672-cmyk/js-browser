@@ -222,37 +222,64 @@ function htmlTagHint(cm) {
     var cursor = cm.getCursor();
     var line = cm.getLine(cursor.line);
     var before = line.slice(0, cursor.ch);
-    var match = before.match(/[a-zA-Z][a-zA-Z0-9-]*$/);
+    var match = before.match(/<([a-zA-Z][a-zA-Z0-9-]*)?$/);
 
     if (!match) {
         return { list: [], from: cursor, to: cursor };
     }
 
-    var word = match[0].toLowerCase();
+    var word = (match[1] || "").toLowerCase();
 
-    var tags = [
-        "h1", "h2", "h3", "h4", "h5", "h6",
-        "header", "footer", "main", "nav",
-        "section", "article", "aside", "div",
-        "span", "p", "a", "img", "ul", "ol",
-        "li", "table", "thead", "tbody", "tfoot",
-        "tr", "th", "td", "form", "label",
-        "input", "textarea", "button", "select",
-        "option", "title", "meta", "link",
-        "script", "style", "video", "audio",
-        "figure", "figcaption", "strong", "em"
-    ];
+    
+    return {
+        list: tags
+            .filter(function (tag) {
+                return tag.indexOf(word) === 0;
+            })
+            .map(function (tag) {
+                return {
+                    text: function () {
+                        var opening = "<" + tag + ">";
+                        var closing = "</" + tag + ">";
+                        var from = CodeMirror.Pos(
+                            cursor.line,
+                            cursor.ch - word.length
+                        );
 
-    var suggestions = tags
-        .filter(function (tag) {
-            return tag.indexOf(word) === 0;
-        })
-        .map(function (tag) {
-            return {
-                text: tag,
-                displayText: tag
-            };
-        });
+                        var voidTags = [
+                            "img", "input", "meta",
+                            "link", "br", "hr"
+                        ];
+
+                        if (voidTags.indexOf(tag) !== -1) {
+                            cm.replaceRange(opening, from, cursor);
+                        } else {
+                            cm.replaceRange(
+                                opening + closing,
+                                from,
+                                cursor
+                            );
+
+                            cm.setCursor(
+                                CodeMirror.Pos(
+                                    cursor.line,
+                                    cursor.ch - word.length + opening.length
+                                )
+                            );
+                        }
+                    },
+                    displayText: "<" + tag + ">"
+                };
+            }),
+        from: CodeMirror.Pos(
+            cursor.line,
+            cursor.ch - word.length
+        ),
+        to: cursor
+    };
+}
+
+        
 
     return {
         list: suggestions,
