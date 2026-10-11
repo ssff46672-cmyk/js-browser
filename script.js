@@ -218,6 +218,52 @@
 
     
 
+function htmlTagHint(cm) {
+    var cursor = cm.getCursor();
+    var line = cm.getLine(cursor.line);
+    var before = line.slice(0, cursor.ch);
+    var match = before.match(/[a-zA-Z][a-zA-Z0-9-]*$/);
+
+    if (!match) {
+        return { list: [], from: cursor, to: cursor };
+    }
+
+    var word = match[0].toLowerCase();
+
+    var tags = [
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "header", "footer", "main", "nav",
+        "section", "article", "aside", "div",
+        "span", "p", "a", "img", "ul", "ol",
+        "li", "table", "thead", "tbody", "tfoot",
+        "tr", "th", "td", "form", "label",
+        "input", "textarea", "button", "select",
+        "option", "title", "meta", "link",
+        "script", "style", "video", "audio",
+        "figure", "figcaption", "strong", "em"
+    ];
+
+    var suggestions = tags
+        .filter(function (tag) {
+            return tag.indexOf(word) === 0;
+        })
+        .map(function (tag) {
+            return {
+                text: tag,
+                displayText: tag
+            };
+        });
+
+    return {
+        list: suggestions,
+        from: CodeMirror.Pos(
+            cursor.line,
+            cursor.ch - match[0].length
+        ),
+        to: cursor
+    };
+}
+
     function initializeEditor() {
         if (!elements.editor) {
             console.error("Editor textarea was not found.");
@@ -236,6 +282,34 @@
                 autoCloseBrackets: true,
                 matchBrackets: true
             });
+            
+editor.on("inputRead", function (cm, change) {
+    if (!change.text || !change.text.length) {
+        return;
+    }
+
+    if (!/\.(html|htm)$/i.test(activeFile)) {
+        return;
+    }
+
+    if (!window.CodeMirror.showHint) {
+        return;
+    }
+
+    var cursor = cm.getCursor();
+    var line = cm.getLine(cursor.line);
+    var before = line.slice(0, cursor.ch);
+
+    if (!/[a-zA-Z][a-zA-Z0-9-]*$/.test(before)) {
+        return;
+    }
+
+    cm.showHint({
+        hint: htmlTagHint,
+        completeSingle: false
+    });
+});
+
 
             editor.on("change", function () {
                 handleEditorChange();
