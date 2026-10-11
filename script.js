@@ -310,39 +310,30 @@ function htmlTagHint(cm) {
                 matchBrackets: true
             });
             
-editor.on("inputRead", function (cm, change) {
-    if (!change.text || !change.text.length) {
-        return;
-    }
+ 
+            editor.on("inputRead", function (cm, change) {
+                if (!change.text || !change.text.length) return;
+                if (!/\.(html|htm)$/i.test(activeFile)) return;
+                if (!window.CodeMirror.showHint) return;
 
-    if (!/\.(html|htm)$/i.test(activeFile)) {
-        return;
-    }
+                var cursor = cm.getCursor();
+                var before = cm.getLine(cursor.line)
+                    .slice(0, cursor.ch);
 
-    if (!window.CodeMirror.showHint) {
-        return;
-    }
+                if (!/<[a-zA-Z][a-zA-Z0-9-]*$/.test(before)) return;
 
-    var cursor = cm.getCursor();
-    var line = cm.getLine(cursor.line);
-    var before = line.slice(0, cursor.ch);
-
-    if (!/[a-zA-Z][a-zA-Z0-9-]*$/.test(before)) {
-        return;
-    }
-
-    cm.showHint({
-        hint: htmlTagHint,
-        completeSingle: false
-    });
-});
-
+                cm.showHint({
+                    hint: htmlTagHint,
+                    completeSingle: false
+                });
+            });
 
             editor.on("change", function () {
                 handleEditorChange();
             });
 
             editor.setSize("100%", "100%");
+
         } else {
             elements.editor.addEventListener("input", handleEditorChange);
             elements.editor.style.width = "100%";
