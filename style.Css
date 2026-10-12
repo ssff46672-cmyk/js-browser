@@ -460,3 +460,74 @@ box-sizing: border-box;
 }
 
 
+/* Professional file icons */
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    margin: 3px 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #cbd5e1;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.file-item:hover {
+    background: #252b3b;
+}
+
+.file-item.active {
+    background: #2b3246;
+    border-color: #414b65;
+    color: #ffffff;
+}
+
+.file-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.html-icon {
+    color: #ff9666;
+    background: #493027;
+}
+
+.css-icon {
+    color: #61bfff;
+    background: #203a56;
+    font-size: 18px;
+}
+
+.js-icon {
+    color: #f7df1e;
+    background: #45421f;
+}
+
+.other-icon {
+    color: #c4b5fd;
+    background: #373052;
+}
+
+.file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.file-item.active .file-name {
+    font-weight: 600;
+}
+
