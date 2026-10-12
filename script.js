@@ -466,6 +466,7 @@ function openAutocomplete(cm, automatic = false) {
    File explorer
    ========================================== */
 
+
 function renderFileList() {
     if (!fileListElement) return;
 
@@ -473,11 +474,34 @@ function renderFileList() {
 
     Object.keys(files).forEach(filename => {
         const button = document.createElement("button");
+        const icon = document.createElement("span");
+        const name = document.createElement("span");
 
         button.type = "button";
         button.className = "file-item";
-        button.textContent = filename;
         button.title = filename;
+
+        const extension = filename.split(".").pop().toLowerCase();
+
+        if (extension === "html") {
+            icon.textContent = "5";
+            icon.className = "file-icon html-icon";
+        } else if (extension === "css") {
+            icon.textContent = "#";
+            icon.className = "file-icon css-icon";
+        } else if (extension === "js") {
+            icon.textContent = "JS";
+            icon.className = "file-icon js-icon";
+        } else {
+            icon.textContent = "•";
+            icon.className = "file-icon other-icon";
+        }
+
+        name.textContent = filename;
+        name.className = "file-name";
+
+        button.appendChild(icon);
+        button.appendChild(name);
 
         if (filename === activeFile) {
             button.classList.add("active");
@@ -488,6 +512,7 @@ function renderFileList() {
         fileListElement.appendChild(button);
     });
 }
+
 
 function openFile(filename) {
     if (!Object.prototype.hasOwnProperty.call(files, filename)) {
